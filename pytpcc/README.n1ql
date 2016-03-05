@@ -1,0 +1,28 @@
+1. Ensure you only have zero or one bucket in your instance.  This package will create NINE buckets.
+2. cwpy/util/cbcrbucket.sh is going to create the nine buckets.
+   Verify the data path location, IP address, userid, password in this script in two places.
+
+   Site=http://127.0.0.1:8091/pools/default/buckets/
+   Auth=Administrator:password
+
+3. execute: sh -x util/bucket.sh
+
+4. create the indices required.
+   /opt/couchbase/bin/cbq <  util/cbcrindex.sql
+
+5. load the data (normalized)
+
+    1. Update the url in the script cwpy/ddl/n1qldriver.py
+    2. Update the userid password in cwpy/ddl/n1qldriver.py
+    3. This has to be done in TWO PLACES.
+    4. Default is:  localhost and Administrator/password
+
+    python ./tpcc.py --warehouses 1 --no-execute n1ql
+
+    You can change the number of warehouses to change the size of the size of the data loaded.
+
+    If you'd like to run the queries, you can execute the following.
+    This runs the tests with 10 concurrent threads for 600 seconds.
+
+    python ./tpcc.py --warehouses 1 --duration 600 --clients 10 n1ql
+
