@@ -43,6 +43,9 @@ import time
 import constants
 from abstractdriver import *
 
+QUERY_URL = "127.0.0.1:8093"
+USER_ID = "Administrator"
+PASSWORD = "password"
 TXN_QUERIES = {
     "DELIVERY": {
         "getNewOrder": "SELECT NO_O_ID FROM NEW_ORDER WHERE NO_D_ID = $1 AND NO_W_ID = $2 AND NO_O_ID > -1 LIMIT 1", #
@@ -262,6 +265,12 @@ globconn = 0
 
 def runNQueryParam(query, param):
         global globcon
+        try:
+            QUERY_URL = os.environ["QUERY_URL"]
+            USER_ID = os.environ["USER_ID"]
+            PASSWORD = os.environ["PASSWORD"]
+        except Exception,ex:
+            print ex
         stmt = '{"statement" : "' + str(query) + '"'
         # print len(param)
         if (len(param) >  0):
@@ -283,7 +292,7 @@ def runNQueryParam(query, param):
         stmt = stmt + myarg
         stmt = stmt + ']" }'
         # print stmt
-        url = "http://localhost:8093/query"
+        url = "http://{0}/query".format(QUERY_URL)
         query = json.loads(stmt)
         # print query
         #r = globcon.post(url, data=query, stream=False, headers={'Connection':'close'})
@@ -309,10 +318,17 @@ class N1QlDriver(AbstractDriver):
         self.database = None
         s = self.conn = requests.Session()
         s.keep_alive = True
-        s.auth = ('Administrator', 'password')
         globcon = s
         self.cursor = None
-    
+        try:
+            QUERY_URL = os.environ["QUERY_URL"]
+            USER_ID = os.environ["USER_ID"]
+            PASSWORD = os.environ["PASSWORD"]
+        except Exception,ex:
+            print ex
+        s.auth = (USER_ID, PASSWORD)
+
+
     ## ----------------------------------------------
     ## makeDefaultConfig
     ## ----------------------------------------------
@@ -345,9 +361,13 @@ class N1QlDriver(AbstractDriver):
         num_columns = range(len(columns))
         
         tuple_dicts = [ ]
-        
-        url = "http://localhost:8093/query"   # Update this for your installation.
-
+        try:
+            QUERY_URL = os.environ["QUERY_URL"]
+            USER_ID = os.environ["USER_ID"]
+            PASSWORD = os.environ["PASSWORD"]
+        except Exception,ex:
+            print ex
+        url = "http://{0}/query".format(QUERY_URL)   # Update this for your installation.
         ## We want to combine all of a CUSTOMER's ORDERS, ORDER_LINE, and HISTORY records
         ## into a single document
         if self.denormalize and tableName in MongodbDriver.DENORMALIZED_TABLES:
@@ -451,7 +471,7 @@ class N1QlDriver(AbstractDriver):
 	    nsql = '{"statement": "' + sql + '"}'
 	    jsql = json.loads(nsql)
 	    # print nsql
-            r = globcon.post(url, data=jsql, stream=False, headers={'Connection':'close'})
+        r = globcon.post(url, data=jsql, stream=False, headers={'Connection':'close'})
 	    # r = requests.post(url, data=jsql, auth=('Administrator', 'password'))
 	    # r = globcon.post(url, data=jsql, stream=False)
 	    # print tableName, r, i, len(nsql)
@@ -725,7 +745,7 @@ class N1QlDriver(AbstractDriver):
 
     ## ----------------------------------------------
     ## doPayment
-    ## ----------------------------------------------    
+    ## ----------------------------------------------
     def doPayment(self, params):
 	# print "Entering doPayment"
         q = TXN_QUERIES["PAYMENT"]
@@ -759,9 +779,9 @@ class N1QlDriver(AbstractDriver):
 	# print "doPayment: Stage 2"
 
         warehouse = runNQueryParam(q["getWarehouse"], [w_id])
-        
+
         district = runNQueryParam(q["getDistrict"], [w_id, d_id])
-        
+
         runNQueryParam(q["updateWarehouseBalance"], [h_amount, w_id])
         runNQueryParam(q["updateDistrictBalance"], [h_amount, w_id, d_id])
 
@@ -797,10 +817,10 @@ class N1QlDriver(AbstractDriver):
 	# print "doPayment: Stage5"
         # Hand back all the warehouse, district, and customer data
         return [ warehouse, district, customer ]
-        
+
     ## ----------------------------------------------
     ## doStockLevel
-    ## ----------------------------------------------    
+    ## ----------------------------------------------
     def doStockLevel(self, params):
 	# print "Entering doStockLevel"
         q = TXN_QUERIES["STOCK_LEVEL"]
@@ -808,15 +828,16 @@ class N1QlDriver(AbstractDriver):
         w_id = params["w_id"]
         d_id = params["d_id"]
         threshold = params["threshold"]
-        
+
         result = runNQueryParam(q["getOId"], [w_id, d_id])
         assert result
         o_id = result[0]['D_NEXT_O_ID']
-        
+
         result = runNQueryParam(q["getStockCount"], [w_id, d_id, o_id, (o_id - 20), w_id, threshold])
-        
+
         #self.conn.commit()
-        
+
         return int(result[0]['CNT_OL_I_ID'])
-        
+
+
 ## CLASS

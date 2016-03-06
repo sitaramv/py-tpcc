@@ -177,6 +177,12 @@ if __name__ == '__main__':
     aparser = argparse.ArgumentParser(description='Python implementation of the TPC-C Benchmark')
     aparser.add_argument('system', choices=getDrivers(),
                          help='Target system driver')
+    aparser.add_argument('--userid',
+                         help='userid for couchbase', default = "Administrator")
+    aparser.add_argument('--password',
+                         help='password for couchbase', default = "password")
+    aparser.add_argument('--query-url',
+                         help='query-url <ip>:port', default = "127.0.0.1:8093")
     aparser.add_argument('--config', type=file,
                          help='Path to driver configuration file')
     aparser.add_argument('--reset', action='store_true',
@@ -202,9 +208,21 @@ if __name__ == '__main__':
     aparser.add_argument('--debug', action='store_true',
                          help='Enable debug log messages')
     args = vars(aparser.parse_args())
-
+    print args
     if args['debug']: logging.getLogger().setLevel(logging.DEBUG)
-        
+    query_url = "127.0.0.1:9000"
+    userid = "Administrator"
+    password = "password"
+    if args['query_url']:
+        query_url = args['query_url']
+    os.environ["QUERY_URL"] = query_url
+    if args['userid']:
+        userid = args['userid']
+    os.environ["USER_ID"] = userid
+    if args['password']:
+        password = args['password']
+    os.environ["PASSWORD"] = password
+
     ## Create a handle to the target client driver
     driverClass = createDriverClass(args['system'])
     assert driverClass != None, "Failed to find '%s' class" % args['system']

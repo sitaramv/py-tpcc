@@ -2,11 +2,19 @@
 
 echo Delete Buckets
 
-Site=http://127.0.0.1:8091/pools/default/buckets/
-Auth=Administrator:password
+Url=${1:-127.0.0.1:8091}
+Site=http://$Url/pools/default/buckets/
+Auth=${2:-Administrator:password}
+#memory = (512 100 128 128 256 1024 1024 512 '218)#@memory = ("512" "100" "128" "128" "256" "1024" "1024" "512" "218")
+#bucket_memory=(512 100 128 128 256 1024 1024 512 218)
+bucket_memory=(100 100 100 100 100 100 100 100 100)
 bucket=(CUSTOMER DISTRICT HISTORY ITEM NEW_ORDER ORDERS ORDER_LINE STOCK WAREHOUSE)
+#bucket_memory = (100 100 100 100 100 100 100 100 100)
 
+numberOfBuckets=${#bucket[@]}
 echo POST /pools/default/buckets
+
+echo "Deleting Buckets"
 
 for i in "${bucket[@]}"
 do
@@ -17,46 +25,22 @@ done
 # echo rm -rf /run/data/
 # rm -rf /run/data/
 
-echo Creating Buckets
+echo "Creating Buckets"
 
-Site=http://127.0.0.1:8091/pools/default/buckets
-Auth=Administrator:password
-port=11224
-low=3
-high=8
+# Bucket Params
+Site=http://$Url/pools/default/buckets
+port=${3:-11224}
+low=${3:-3}
+high=${3:-8}
 
-#CUSTOMER
-curl -X POST -u $Auth -d name=CUSTOMER -d ramQuotaMB=512 -d authType=none -d proxyPort=$port $Site -d threadsNumber=$high 
+# Create buckets
+for ((i=0; i < 9 ; i++))
+do
+	echo curl -X POST -u $Auth -d name=${bucket[$i]} -d ramQuotaMB=${bucket_memory[$i]} -d authType=none -d proxyPort=$port $Site -d threadsNumber=$high
 let port\+=1
-
-#DISTRICT
-curl -X POST -u $Auth -d name=DISTRICT -d ramQuotaMB=100 -d authType=none -d proxyPort=$port $Site -d threadsNumber=$high 
+curl -X POST -u $Auth -d name=${bucket[$i]} -d ramQuotaMB=${bucket_memory[$i]} -d authType=none -d proxyPort=$port $Site -d threadsNumber=$high
 let port\+=1
-#HISTORY
-curl -X POST -u $Auth -d name=HISTORY -d ramQuotaMB=128 -d authType=none -d proxyPort=$port $Site -d threadsNumber=$high 
-let port\+=1
+done
 
-#ITEM
-curl -X POST -u $Auth -d name=ITEM -d ramQuotaMB=128 -d authType=none -d proxyPort=$port $Site -d threadsNumber=$high 
-let port\+=1
-
-#NEW_ORDER
-curl -X POST -u $Auth -d name=NEW_ORDER -d ramQuotaMB=256 -d authType=none -d proxyPort=$port $Site -d threadsNumber=$high 
-let port\+=1
-
-#ORDERS
-curl -X POST -u $Auth -d name=ORDERS -d ramQuotaMB=1024 -d authType=none -d proxyPort=$port $Site -d threadsNumber=$high 
-let port\+=1
-
-#ORDER_LINE
-curl -X POST -u $Auth -d name=ORDER_LINE -d ramQuotaMB=1024 -d authType=none -d proxyPort=$port $Site -d threadsNumber=$high 
-let port\+=1
-
-#STOCK
-curl -X POST -u $Auth -d name=STOCK -d ramQuotaMB=512 -d authType=none -d proxyPort=$port $Site -d threadsNumber=$high 
-let port\+=1
-
-#WAREHOUSE
-curl -X POST -u $Auth -d name=WAREHOUSE -d ramQuotaMB=128 -d authType=none -d proxyPort=$port $Site -d threadsNumber=$low 
-let port\+=1
-
+echo "sleep 30 seconds"
+sleep 30
