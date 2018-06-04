@@ -90,7 +90,10 @@ TXN_QUERIES = {
     
     "STOCK_LEVEL": {
         "getOId": "SELECT D_NEXT_O_ID FROM DISTRICT WHERE D_W_ID = $1 AND D_ID = $2",
-        "getStockCount": " SELECT COUNT(DISTINCT(o.OL_I_ID)) AS CNT_OL_I_ID FROM  ORDER_LINE o INNER JOIN STOCK s ON KEYS (TO_STRING(o.OL_W_ID) || '.' ||  TO_STRING(o.OL_I_ID)) WHERE o.OL_W_ID = $1 AND o.OL_D_ID = $2 AND o.OL_O_ID < $3 AND o.OL_O_ID >= $4 AND s.S_QUANTITY < $6; "
+        "getStockCount": " SELECT COUNT(DISTINCT(o.OL_I_ID)) AS CNT_OL_I_ID FROM  ORDER_LINE o INNER JOIN STOCK s ON KEYS (TO_STRING(o.OL_W_ID) || '.' ||  TO_STRING(o.OL_I_ID)) WHERE o.OL_W_ID = $1 AND o.OL_D_ID = $2 AND o.OL_O_ID < $3 AND o.OL_O_ID >= $4 AND s.S_QUANTITY < $6 ",
+        "ansigetStockCount": " SELECT COUNT(DISTINCT(o.OL_I_ID)) AS CNT_OL_I_ID FROM  ORDER_LINE o INNER JOIN STOCK s ON ((TO_STRING(o.OL_W_ID) || '.' ||  TO_STRING(o.OL_I_ID)) == (TO_STRING(s.S_W_ID) || '.' ||  TO_STRING(o.S_I_ID))) WHERE o.OL_W_ID = $1 AND o.OL_D_ID = $2 AND o.OL_O_ID < $3 AND o.OL_O_ID >= $4 AND s.S_QUANTITY < $6 ",
+        "getOrdersByDistrict": "SELECT * FROM  DISTRICT d INNER JOIN ORDERS o ON d.D_ID == o.O_D_ID limit $1 ",
+        "getCustomerOrdersByDistrict": "SELECT * FROM  CUSTOMER c INNER JOIN ORDERS o ON c.C_ID == o.O_C_ID WHERE c.C_D_ID = $1 LIMIT 5000 " # d_ID
     },
 }
 
@@ -836,8 +839,9 @@ class N1QlDriver(AbstractDriver):
         result = runNQueryParam(q["getStockCount"], [w_id, d_id, o_id, (o_id - 20), w_id, threshold])
 
         #self.conn.commit()
+        runNQueryParam(q["getCustomerOrdersByDistrict"], [d_id])
+        runNQueryParam(q["getOrdersByDistrict"], [10000])
+        runNQueryParam(q['ansigetStockCount'], [w_id, d_id, o_id, (o_id - 20), w_id, threshold])
 
         return int(result[0]['CNT_OL_I_ID'])
-
-
 ## CLASS
