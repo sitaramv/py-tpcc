@@ -91,9 +91,9 @@ TXN_QUERIES = {
     "STOCK_LEVEL": {
         "getOId": "SELECT D_NEXT_O_ID FROM DISTRICT WHERE D_W_ID = $1 AND D_ID = $2",
         "getStockCount": " SELECT COUNT(DISTINCT(o.OL_I_ID)) AS CNT_OL_I_ID FROM  ORDER_LINE o INNER JOIN STOCK s ON KEYS (TO_STRING(o.OL_W_ID) || '.' ||  TO_STRING(o.OL_I_ID)) WHERE o.OL_W_ID = $1 AND o.OL_D_ID = $2 AND o.OL_O_ID < $3 AND o.OL_O_ID >= $4 AND s.S_QUANTITY < $6 ",
-        "ansigetStockCount": " SELECT COUNT(DISTINCT(o.OL_I_ID)) AS CNT_OL_I_ID FROM  ORDER_LINE o INNER JOIN STOCK s ON ((TO_STRING(o.OL_W_ID) || '.' ||  TO_STRING(o.OL_I_ID)) == (TO_STRING(s.S_W_ID) || '.' ||  TO_STRING(o.S_I_ID))) WHERE o.OL_W_ID = $1 AND o.OL_D_ID = $2 AND o.OL_O_ID < $3 AND o.OL_O_ID >= $4 AND s.S_QUANTITY < $6 ",
-        "getOrdersByDistrict": "SELECT * FROM  DISTRICT d INNER JOIN ORDERS o ON d.D_ID == o.O_D_ID limit $1 ",
-        "getCustomerOrdersByDistrict": "SELECT * FROM  CUSTOMER c INNER JOIN ORDERS o ON c.C_ID == o.O_C_ID WHERE c.C_D_ID = $1 LIMIT 5000 " # d_ID
+        "ansigetStockCount": " SELECT COUNT(DISTINCT(o.OL_I_ID)) AS CNT_OL_I_ID FROM  ORDER_LINE o INNER JOIN STOCK s ON (o.OL_W_ID == s.S_W_ID AND o.OL_I_ID ==  s.S_I_ID) WHERE o.OL_W_ID = $1 AND o.OL_D_ID = $2 AND o.OL_O_ID < $3 AND o.OL_O_ID >= $4 AND s.S_QUANTITY < $6 ",
+        "getOrdersByDistrict": "SELECT * FROM  DISTRICT d INNER JOIN ORDERS o ON d.D_ID == o.O_D_ID where d.D_ID = $1",
+        "getCustomerOrdersByDistrict": "SELECT COUNT(DISTINCT(c.C_ID)) FROM  CUSTOMER c INNER JOIN ORDERS o ON c.C_ID == o.O_C_ID WHERE c.C_D_ID = $1" # d_ID
     },
 }
 
@@ -294,14 +294,14 @@ def runNQueryParam(query, param):
                         myarg = myarg + ","
         stmt = stmt + myarg
         stmt = stmt + ']" }'
-        # print stmt
+        print stmt
         url = "http://{0}/query".format(QUERY_URL)
         query = json.loads(stmt)
-        # print query
+        print query
         #r = globcon.post(url, data=query, stream=False, headers={'Connection':'close'})
         r = globcon.post(url, data=query, stream=False)
-        # print r.json()
-        # print r.json()['results']
+        print r.json()
+        print r.json()['results']
 	return r.json()['results']
 
 ## ==============================================
@@ -840,7 +840,7 @@ class N1QlDriver(AbstractDriver):
 
         #self.conn.commit()
         runNQueryParam(q["getCustomerOrdersByDistrict"], [d_id])
-        runNQueryParam(q["getOrdersByDistrict"], [10000])
+        runNQueryParam(q["getOrdersByDistrict"], [d_id])
         runNQueryParam(q['ansigetStockCount'], [w_id, d_id, o_id, (o_id - 20), w_id, threshold])
 
         return int(result[0]['CNT_OL_I_ID'])
