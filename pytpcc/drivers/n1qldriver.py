@@ -294,14 +294,14 @@ def runNQueryParam(query, param):
                         myarg = myarg + ","
         stmt = stmt + myarg
         stmt = stmt + ']" }'
-        print stmt
+        #print stmt
         url = "http://{0}/query".format(QUERY_URL)
         query = json.loads(stmt)
-        print query
+        #print query
         #r = globcon.post(url, data=query, stream=False, headers={'Connection':'close'})
         r = globcon.post(url, data=query, stream=False)
-        print r.json()
-        print r.json()['results']
+        #print r.json()
+        #print r.json()['results']
 	return r.json()['results']
 
 ## ==============================================
