@@ -304,42 +304,6 @@ def runNQueryParam(query, param):
         #print r.json()['results']
 	return r.json()['results']
 
-## ----------------------------------------------
-## prepareNQueryParam
-## ----------------------------------------------
-
-def prepareNQueryParam(queries, txn_name, params={}):
-    global globcon
-    try:
-        QUERY_URL = os.environ["QUERY_URL"]
-        USER_ID = os.environ["USER_ID"]
-        PASSWORD = os.environ["PASSWORD"]
-    except Exception,ex:
-        print ex
-    url = "http://{0}/query/service".format(QUERY_URL)
-    prepared_dict = {}
-    converted_district = ""
-    for query in queries.keys():
-        if query == "getStockInfo":
-            converted_district = queries[query] % (params["d_id"])
-            prepare_query = "PREPARE %s_%s_%s " % (txn_name,params["d_id"],query) + "FROM %s" % converted_district
-        else:
-            prepare_query = "PREPARE %s_%s " % (txn_name,query) + "FROM %s" % queries[query]
-        stmt = '{"statement" : "' + str(prepare_query) + '"}'
-        i=0
-        curl_query = json.loads(stmt)
-        #print query
-        #r = globcon.post(url, data=query, stream=False, headers={'Connection':'close'})
-        r = globcon.post(url, data=curl_query, stream=False)
-        r.json()
-        if query == "getStockInfo":
-            prepared_dict[query] = "EXECUTE %s_%s_%s" % (txn_name, params["d_id"], query)
-        else:
-            prepared_dict[query] = "EXECUTE %s_%s" % (txn_name,query)
-        #print r.json()
-        #print r.json()['results']
-    return prepared_dict
-
 ## ==============================================
 ## n1qlDriver
 ## ==============================================
@@ -366,6 +330,27 @@ class N1QlDriver(AbstractDriver):
         except Exception,ex:
             print ex
         s.auth = (USER_ID, PASSWORD)
+
+        url = "http://{0}/query/service".format(QUERY_URL)
+        self.prepared_dict = {}
+        for txn in TXN_QUERIES:
+            for query in TXN_QUERIES[txn]:
+                if query == "getStockInfo":
+                    for i in range(1,11):
+                        converted_district = TXN_QUERIES[txn][query] % i
+                        prepare_query = "PREPARE %s_%s_%s " % (txn, i, query) + "FROM %s" % converted_district
+                        stmt = '{"statement" : "' + str(prepare_query) + '"}'
+                        curl_query = json.loads(stmt)
+                        r = globcon.post(url, data=curl_query, stream=False)
+                        r.json()
+                        self.prepared_dict[txn + str(i) + query] = "EXECUTE %s_%s_%s" % (txn, i, query)
+                else:
+                    prepare_query = "PREPARE %s_%s " % (txn, query) + "FROM %s" % TXN_QUERIES[txn][query]
+                    stmt = '{"statement" : "' + str(prepare_query) + '"}'
+                    curl_query = json.loads(stmt)
+                    r = globcon.post(url, data=curl_query, stream=False)
+                    r.json()
+                    self.prepared_dict[txn + query] = "EXECUTE %s_%s" % (txn, query)
 
 
     ## ----------------------------------------------
@@ -542,8 +527,8 @@ class N1QlDriver(AbstractDriver):
     ## ----------------------------------------------
     def doDelivery(self, params):
 	# print "Entering doDelivery"
-        q = TXN_QUERIES["DELIVERY"]
-        prepared_names = prepareNQueryParam(q,"DELIVERY")
+        txn = "DELIVERY"
+        q = TXN_QUERIES[txn]
         w_id = params["w_id"]
         o_carrier_id = params["o_carrier_id"]
         ol_delivery_d = params["ol_delivery_d"]
@@ -551,27 +536,27 @@ class N1QlDriver(AbstractDriver):
         result = [ ]
         for d_id in range(1, constants.DISTRICTS_PER_WAREHOUSE+1):
 
-	    newOrder = runNQueryParam(prepared_names["getNewOrder"], [d_id, w_id])
+	    newOrder = runNQueryParam(self.prepared_dict[ txn + "getNewOrder"], [d_id, w_id])
             if len(newOrder) == 0:
                 ## No orders for this district: skip it. Note: This must be reported if > 1%
                 continue
             assert len(newOrder) > 0
             no_o_id = newOrder[0]['NO_O_ID']
             
-            rs = runNQueryParam(prepared_names["getCId"], [no_o_id, d_id, w_id])
+            rs = runNQueryParam(self.prepared_dict[ txn + "getCId"], [no_o_id, d_id, w_id])
 
             assert len(rs) > 0
 
 	    c_id = rs[0]['O_C_ID']
             
-            rs2 = runNQueryParam(prepared_names["sumOLAmount"], [no_o_id, d_id, w_id])
+            rs2 = runNQueryParam(self.prepared_dict[ txn + "sumOLAmount"], [no_o_id, d_id, w_id])
 
             assert len(rs2) > 0
             ol_total = rs2[0]['SUM_OL_AMOUNT']
 
-            runNQueryParam(prepared_names["deleteNewOrder"], [d_id, w_id, no_o_id])
-            runNQueryParam(prepared_names["updateOrders"], [o_carrier_id, no_o_id, d_id, w_id])
-            runNQueryParam(prepared_names["updateOrderLine"], [ol_delivery_d, no_o_id, d_id, w_id])
+            runNQueryParam(self.prepared_dict[ txn + "deleteNewOrder"], [d_id, w_id, no_o_id])
+            runNQueryParam(self.prepared_dict[ txn + "updateOrders"], [o_carrier_id, no_o_id, d_id, w_id])
+            runNQueryParam(self.prepared_dict[ txn + "updateOrderLine"], [ol_delivery_d, no_o_id, d_id, w_id])
 
             # These must be logged in the "result file" according to TPC-C 2.7.2.2 (page 39)
             # We remove the queued time, completed time, w_id, and o_carrier_id: the client can figure
@@ -580,7 +565,7 @@ class N1QlDriver(AbstractDriver):
             # assert ol_total != None, "ol_total is NULL: there are no order lines. This should not happen"
             # assert ol_total > 0.0
 
-            runNQueryParam(prepared_names["updateCustomer"], [ol_total, c_id, d_id, w_id])
+            runNQueryParam(self.prepared_dict[ txn + "updateCustomer"], [ol_total, c_id, d_id, w_id])
 
             result.append((d_id, no_o_id))
         ## FOR
@@ -592,12 +577,12 @@ class N1QlDriver(AbstractDriver):
     ## ----------------------------------------------
     def doNewOrder(self, params):
 	# print "Entering doNewOrder"
-        q = TXN_QUERIES["NEW_ORDER"]
+        txn = "NEW_ORDER"
+        q = TXN_QUERIES[txn]
 	d_next_o_id = 0
         w_id = params["w_id"]
         d_id = params["d_id"]
         c_id = params["c_id"]
-        prepared_names = prepareNQueryParam(q, "NEW_ORDER", params)
         # print '#NewOrder'
         # print w_id, d_id, c_id
 
@@ -615,7 +600,7 @@ class N1QlDriver(AbstractDriver):
         for i in range(len(i_ids)):
             ## Determine if this is an all local order or not
             all_local = all_local and i_w_ids[i] == w_id
-            rs = runNQueryParam(prepared_names["getItemInfo"], [i_ids[i]])
+            rs = runNQueryParam(self.prepared_dict[ txn + "getItemInfo"], [i_ids[i]])
 	    #keshav added.  Needed? assert len(rs) > 0
             items.append(rs[0])
         assert len(items) == len(i_ids)
@@ -634,18 +619,18 @@ class N1QlDriver(AbstractDriver):
         ## Collect Information from WAREHOUSE, DISTRICT, and CUSTOMER
         ## ----------------
         # print w_id
-        rs = runNQueryParam(prepared_names["getWarehouseTaxRate"], [w_id])
+        rs = runNQueryParam(self.prepared_dict[ txn + "getWarehouseTaxRate"], [w_id])
         customer_info = rs
         assert len(rs) > 0
         if len(rs) > 0:
             w_tax = rs[0]['W_TAX']
         
-        district_info = runNQueryParam(prepared_names["getDistrict"], [d_id, w_id])
+        district_info = runNQueryParam(self.prepared_dict[ txn +"getDistrict"], [d_id, w_id])
         if len(district_info) != 0:
             d_tax = district_info[0]['D_TAX']
             d_next_o_id = district_info[0]['D_NEXT_O_ID']
         
-        rs = runNQueryParam(prepared_names["getCustomer"], [w_id, d_id, c_id])
+        rs = runNQueryParam(self.prepared_dict[ txn + "getCustomer"], [w_id, d_id, c_id])
 	if len(rs) != 0:
             c_discount = rs[0]['C_DISCOUNT']
 
@@ -655,9 +640,9 @@ class N1QlDriver(AbstractDriver):
         ol_cnt = len(i_ids)
         o_carrier_id = constants.NULL_CARRIER_ID
         
-        runNQueryParam(prepared_names["incrementNextOrderId"], [d_next_o_id + 1, d_id, w_id])
-        runNQueryParam(prepared_names["createOrder"], [d_next_o_id, d_id, w_id, c_id, o_entry_d, o_carrier_id, ol_cnt, all_local])
-        runNQueryParam(prepared_names["createNewOrder"], [d_next_o_id, d_id, w_id])
+        runNQueryParam(self.prepared_dict[ txn + "incrementNextOrderId"], [d_next_o_id + 1, d_id, w_id])
+        runNQueryParam(self.prepared_dict[ txn + "createOrder"], [d_next_o_id, d_id, w_id, c_id, o_entry_d, o_carrier_id, ol_cnt, all_local])
+        runNQueryParam(self.prepared_dict[ txn + "createNewOrder"], [d_next_o_id, d_id, w_id])
         # print "NewOrder Stage #1"
 
         ## ----------------
@@ -681,7 +666,7 @@ class N1QlDriver(AbstractDriver):
             i_price = itemInfo["I_PRICE"]
 
             # print "NewOrder Stage #3"
-            stockInfo = runNQueryParam(prepared_names["getStockInfo"], [ol_i_id, ol_supply_w_id])
+            stockInfo = runNQueryParam(self.prepared_dict[ txn + str(d_id) + "getStockInfo"], [ol_i_id, ol_supply_w_id])
             if len(stockInfo) == 0:
                 logging.warn("No STOCK record for (ol_i_id=%d, ol_supply_w_id=%d)" % (ol_i_id, ol_supply_w_id))
                 continue
@@ -711,7 +696,7 @@ class N1QlDriver(AbstractDriver):
             if ol_supply_w_id != w_id: s_remote_cnt += 1
 
             # print "NewOrder Stage #5"
-            runNQueryParam(prepared_names["updateStock"], [s_quantity, s_ytd, s_order_cnt, s_remote_cnt, ol_i_id, ol_supply_w_id])
+            runNQueryParam(self.prepared_dict[ txn + "updateStock"], [s_quantity, s_ytd, s_order_cnt, s_remote_cnt, ol_i_id, ol_supply_w_id])
 
             if i_data.find(constants.ORIGINAL_STRING) != -1 and s_data.find(constants.ORIGINAL_STRING) != -1:
                 brand_generic = 'B'
@@ -722,7 +707,7 @@ class N1QlDriver(AbstractDriver):
             ol_amount = ol_quantity * i_price
             total += ol_amount
 
-            runNQueryParam(prepared_names["createOrderLine"], [d_next_o_id, d_id, w_id, ol_number, ol_i_id, ol_supply_w_id, o_entry_d, ol_quantity, ol_amount, s_dist_xx])
+            runNQueryParam(self.prepared_dict[ txn + "createOrderLine"], [d_next_o_id, d_id, w_id, ol_number, ol_i_id, ol_supply_w_id, o_entry_d, ol_quantity, ol_amount, s_dist_xx])
 
             ## Add the info to be returned
             item_data.append( (i_name, s_quantity, brand_generic, i_price, ol_amount) )
@@ -748,8 +733,8 @@ class N1QlDriver(AbstractDriver):
     ## ----------------------------------------------
     def doOrderStatus(self, params):
 	# print "Entering doOrderStatus"
-        q = TXN_QUERIES["ORDER_STATUS"]
-        prepared_names = prepareNQueryParam(q, "ORDER_STATUS")
+        txn = "ORDER_STATUS"
+        q = TXN_QUERIES[txn]
         w_id = params["w_id"]
         d_id = params["d_id"]
         c_id = params["c_id"]
@@ -759,11 +744,11 @@ class N1QlDriver(AbstractDriver):
         assert d_id, pformat(params)
 
         if c_id != None:
-            customerlist = runNQueryParam(prepared_names["getCustomerByCustomerId"], [w_id, d_id, c_id])
+            customerlist = runNQueryParam(self.prepared_dict[ txn + "getCustomerByCustomerId"], [w_id, d_id, c_id])
 	    customer = customerlist[0]
         else:
             # Get the midpoint customer's id
-            all_customers = runNQueryParam(prepared_names["getCustomersByLastName"], [w_id, d_id, c_last])
+            all_customers = runNQueryParam(self.prepared_dict[ txn + "getCustomersByLastName"], [w_id, d_id, c_last])
             assert len(all_customers) > 0
             namecnt = len(all_customers)
             index = (namecnt-1)/2
@@ -772,9 +757,9 @@ class N1QlDriver(AbstractDriver):
         assert len(customer) > 0
         assert c_id != None
 
-        order = runNQueryParam(prepared_names["getLastOrder"], [w_id, d_id, c_id])
+        order = runNQueryParam(self.prepared_dict[ txn + "getLastOrder"], [w_id, d_id, c_id])
         if len(order) > 0:
-            orderLines = runNQueryParam(prepared_names["getOrderLines"], [w_id, d_id, order[0]['O_ID']])
+            orderLines = runNQueryParam(self.prepared_dict[ txn + "getOrderLines"], [w_id, d_id, order[0]['O_ID']])
         else:
             orderLines = [ ]
 
@@ -786,8 +771,8 @@ class N1QlDriver(AbstractDriver):
     ## ----------------------------------------------
     def doPayment(self, params):
 	# print "Entering doPayment"
-        q = TXN_QUERIES["PAYMENT"]
-        prepared_names = prepareNQueryParam(q, "PAYMENT")
+        txn = "PAYMENT"
+        q = TXN_QUERIES[txn]
         w_id = params["w_id"]
         d_id = params["d_id"]
         h_amount = params["h_amount"]
@@ -798,12 +783,11 @@ class N1QlDriver(AbstractDriver):
         h_date = params["h_date"]
 
         if c_id != None:
-            customerlist = runNQueryParam(prepared_names["getCustomerByCustomerId"], [w_id, d_id, c_id])
+            customerlist = runNQueryParam(self.prepared_dict[ txn + "getCustomerByCustomerId"], [w_id, d_id, c_id])
             customer = customerlist[0]
         else:
             # Get the midpoint customer's id
-            all_customers = runNQueryParam(prepared_names["getCustomersByLastName"], [w_id, d_id, c_last])
-            all_customers2 = runNQueryParam(q["getCustomersByLastName"], [w_id, d_id, c_last])
+            all_customers = runNQueryParam(self.prepared_dict[ txn + "getCustomersByLastName"], [w_id, d_id, c_last])
 
             assert len(all_customers) > 0
             namecnt = len(all_customers)
@@ -818,12 +802,12 @@ class N1QlDriver(AbstractDriver):
 
 	# print "doPayment: Stage 2"
 
-        warehouse = runNQueryParam(prepared_names["getWarehouse"], [w_id])
+        warehouse = runNQueryParam(self.prepared_dict[ txn + "getWarehouse"], [w_id])
 
-        district = runNQueryParam(prepared_names["getDistrict"], [w_id, d_id])
+        district = runNQueryParam(self.prepared_dict[ txn + "getDistrict"], [w_id, d_id])
 
-        runNQueryParam(prepared_names["updateWarehouseBalance"], [h_amount, w_id])
-        runNQueryParam(prepared_names["updateDistrictBalance"], [h_amount, w_id, d_id])
+        runNQueryParam(self.prepared_dict[ txn + "updateWarehouseBalance"], [h_amount, w_id])
+        runNQueryParam(self.prepared_dict[ txn + "updateDistrictBalance"], [h_amount, w_id, d_id])
 
 	# print "doPayment: Stage3"
 
@@ -832,10 +816,10 @@ class N1QlDriver(AbstractDriver):
             newData = " ".join(map(str, [c_id, c_d_id, c_w_id, d_id, w_id, h_amount]))
             c_data = (newData + "|" + c_data)
             if len(c_data) > constants.MAX_C_DATA: c_data = c_data[:constants.MAX_C_DATA]
-            runNQueryParam(prepared_names["updateBCCustomer"], [c_balance, c_ytd_payment, c_payment_cnt, c_data, c_w_id, c_d_id, c_id])
+            runNQueryParam(self.prepared_dict[ txn + "updateBCCustomer"], [c_balance, c_ytd_payment, c_payment_cnt, c_data, c_w_id, c_d_id, c_id])
         else:
             c_data = ""
-            runNQueryParam(prepared_names["updateGCCustomer"], [c_balance, c_ytd_payment, c_payment_cnt, c_w_id, c_d_id, c_id])
+            runNQueryParam(self.prepared_dict[ txn + "updateGCCustomer"], [c_balance, c_ytd_payment, c_payment_cnt, c_w_id, c_d_id, c_id])
 
 	# print "doPayment: Stage4"
         # Concatenate w_name, four spaces, d_name
@@ -843,7 +827,7 @@ class N1QlDriver(AbstractDriver):
 	# print "district %s" % (str(district))
         h_data = "%s    %s" % (warehouse[0]['W_NAME'], district[0]['D_NAME'])
         # Create the history record
-        runNQueryParam(prepared_names["insertHistory"], [c_id, c_d_id, c_w_id, d_id, w_id, h_date, h_amount, h_data])
+        runNQueryParam(self.prepared_dict[ txn + "insertHistory"], [c_id, c_d_id, c_w_id, d_id, w_id, h_date, h_amount, h_data])
 
         #Keshav: self.conn.commit()
 
@@ -863,22 +847,23 @@ class N1QlDriver(AbstractDriver):
     ## ----------------------------------------------
     def doStockLevel(self, params):
 	# print "Entering doStockLevel"
-        q = TXN_QUERIES["STOCK_LEVEL"]
-        prepared_names = prepareNQueryParam(q,"STOCK_LEVEL")
+        txn = "STOCK_LEVEL"
+        q = TXN_QUERIES[txn]
+
         w_id = params["w_id"]
         d_id = params["d_id"]
         threshold = params["threshold"]
 
-        result = runNQueryParam(prepared_names["getOId"], [w_id, d_id])
+        result = runNQueryParam(self.prepared_dict[ txn + "getOId"], [w_id, d_id])
         assert result
         o_id = result[0]['D_NEXT_O_ID']
 
-        result = runNQueryParam(prepared_names["getStockCount"], [w_id, d_id, o_id, (o_id - 20), w_id, threshold])
+        result = runNQueryParam(self.prepared_dict[ txn + "getStockCount"], [w_id, d_id, o_id, (o_id - 20), w_id, threshold])
 
         #self.conn.commit()
-        runNQueryParam(prepared_names["getCustomerOrdersByDistrict"], [d_id])
-        runNQueryParam(prepared_names["getOrdersByDistrict"], [d_id])
-        runNQueryParam(prepared_names['ansigetStockCount'], [w_id, d_id, o_id, (o_id - 20), w_id, threshold])
+        runNQueryParam(self.prepared_dict[ txn + "getCustomerOrdersByDistrict"], [d_id])
+        runNQueryParam(self.prepared_dict[ txn + "getOrdersByDistrict"], [d_id])
+        runNQueryParam(self.prepared_dict[ txn + 'ansigetStockCount'], [w_id, d_id, o_id, (o_id - 20), w_id, threshold])
 
         return int(result[0]['CNT_OL_I_ID'])
 ## CLASS
