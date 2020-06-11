@@ -26,5 +26,5 @@
     If you'd like to run the queries, you can execute the following.
     This runs the tests with 10 concurrent threads for 600 seconds.
 
-    python ./tpcc.py --warehouses 1 --duration 600 --clients 10 n1ql --query-url 127.0.0.1:8093 --userid Administrator --pasword password
+    python ./tpcc.py --warehouses 1 --duration 600 --clients 10 n1ql --query-url 127.0.0.1:8093 --userid Administrator --password password
 
