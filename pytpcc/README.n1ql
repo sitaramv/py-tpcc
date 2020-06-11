@@ -12,14 +12,14 @@
    Third Parameter: Bucket Port if any
 
 4. create the indices required.
-   util/run_sql.sh < cbcrindex.sql
+   util/run_sql.sh < util/cbcrindex.sql
 
 5. load the data (normalized)
 
-    python ./tpcc.py --warehouses 1 --no-execute n1ql --query-url 127.0.0.1:8093 --userid Administrator --pasword password
+    python ./tpcc.py --warehouses 1 --no-execute n1ql --query-url 127.0.0.1:8093 --userid Administrator --password password
 
     For cluster run
-    python ./tpcc.py --warehouses 1 --no-execute n1ql --query-url 127.0.0.1:9499 --userid Administrator --pasword password
+    python ./tpcc.py --warehouses 1 --no-execute n1ql --query-url 127.0.0.1:9499 --userid Administrator --password password
 
     You can change the number of warehouses to change the size of the size of the data loaded.
 
