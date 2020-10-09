@@ -54,23 +54,23 @@ TXN_QUERIES = {
         "updateOrders": "UPDATE ORDERS SET O_CARRIER_ID = $1 WHERE O_ID = $2 AND O_D_ID = $3 AND O_W_ID = $4", # o_carrier_id, no_o_id, d_id, w_id
         "updateOrderLine": "UPDATE ORDER_LINE SET OL_DELIVERY_D = $1 WHERE OL_O_ID = $2 AND OL_D_ID = $3 AND OL_W_ID = $4", # o_entry_d, no_o_id, d_id, w_id
         "sumOLAmount": "SELECT SUM(OL_AMOUNT) AS SUM_OL_AMOUNT FROM ORDER_LINE WHERE OL_O_ID = $1 AND OL_D_ID = $2 AND OL_W_ID = $3", # no_o_id, d_id, w_id
-        "updateCustomer": "UPDATE CUSTOMER USE KEYS [(to_string($4) || '.' || to_string($3) || '.' ||  to_string($2))] SET C_BALANCE = C_BALANCE + $1 ", # ol_total, c_id, d_id, w_id
+       "updateCustomer": "UPDATE CUSTOMER SET C_BALANCE = C_BALANCE + $1 WHERE C_ID= $2 AND  C_D_ID = $3 AND C_W_ID = $4", # ol_total, c_id, d_id, w_id
     },
     "NEW_ORDER": {
         "getWarehouseTaxRate": "SELECT W_TAX FROM WAREHOUSE WHERE W_ID = $1", # w_id
         "getDistrict": "SELECT D_TAX, D_NEXT_O_ID FROM DISTRICT WHERE D_ID = $1 AND D_W_ID = $2", # d_id, w_id
         "incrementNextOrderId": "UPDATE DISTRICT SET D_NEXT_O_ID = $1 WHERE D_ID = $2 AND D_W_ID = $3", # d_next_o_id, d_id, w_id
-        "getCustomer": "SELECT C_DISCOUNT, C_LAST, C_CREDIT FROM CUSTOMER USE KEYS [(to_string($1) || '.' ||  to_string($2) || '.' ||  to_string($3)) ] ", # w_id, d_id, c_id
+        "getCustomer": "SELECT C_DISCOUNT, C_LAST, C_CREDIT FROM CUSTOMER WHERE C_W_ID = $1 AND C_D_ID = $2 AND C_ID = $3", # w_id, d_id, c_id
         "createOrder": "INSERT INTO ORDERS (KEY, VALUE) VALUES (TO_STRING($3) || '.' ||  TO_STRING($2) || '.' ||  TO_STRING($1), {\\\"O_ID\\\":$1, \\\"O_D_ID\\\":$2, \\\"O_W_ID\\\":$3, \\\"O_C_ID\\\":$4, \\\"O_ENTRY_D\\\":$5, \\\"O_CARRIER_ID\\\":$6, \\\"O_OL_CNT\\\":$7, \\\"O_ALL_LOCAL\\\":$8})", # d_next_o_id, d_id, w_id, c_id, o_entry_d, o_carrier_id, o_ol_cnt, o_all_local
         "createNewOrder": "INSERT INTO NEW_ORDER(KEY, VALUE) VALUES(TO_STRING($2)|| '.' || TO_STRING($3)|| '.' || TO_STRING($1), {\\\"NO_O_ID\\\":$1,\\\"NO_D_ID\\\":$2,\\\"NO_W_ID\\\":$3})",
-        "getItemInfo": "SELECT I_PRICE, I_NAME, I_DATA FROM ITEM USE KEYS [to_string($1)]", # ol_i_id
-        "getStockInfo": "SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_%02d FROM STOCK USE KEYS [TO_STRING($2)|| '.' || TO_STRING($1)]", # d_id, ol_i_id, ol_supply_w_id
-        "updateStock": "UPDATE STOCK USE KEYS [to_string($6) || '.' || to_string($5)] SET S_QUANTITY = $1, S_YTD = $2, S_ORDER_CNT = $3, S_REMOTE_CNT = $4 ", # s_quantity, s_order_cnt, s_remote_cnt, ol_i_id, ol_supply_w_id
+        "getItemInfo": "SELECT I_PRICE, I_NAME, I_DATA FROM ITEM WHERE I_ID = $1", # ol_i_id
+        "getStockInfo": "SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_%02d FROM STOCK WHERE S_I_ID = $2 AND S_W_ID = $1", # d_id, ol_i_id, ol_supply_w_id
+        "updateStock": "UPDATE STOCK SET S_QUANTITY = $1, S_YTD = $2, S_ORDER_CNT = $3, S_REMOTE_CNT = $4 WHERE S_I_ID = $5 AND S_W_ID = $6", # s_quantity, s_order_cnt, s_remote_cnt, ol_i_id, ol_supply_w_id
         "createOrderLine": "INSERT INTO ORDER_LINE(KEY, VALUE) VALUES(TO_STRING($3)|| '.' || TO_STRING($2)|| '.' || TO_STRING($1)|| '.' || TO_STRING($4), { \\\"OL_O_ID\\\":$1, \\\"OL_D_ID\\\":$2, \\\"OL_W_ID\\\":$3, \\\"OL_NUMBER\\\":$4, \\\"OL_I_ID\\\":$5, \\\"OL_SUPPLY_W_ID\\\":$6, \\\"OL_DELIVERY_D\\\":$7, \\\"OL_QUANTITY\\\":$8, \\\"OL_AMOUNT\\\":$9, \\\"OL_DIST_INFO\\\":$10})" # o_id, d_id, w_id, ol_number, ol_i_id, ol_supply_w_id, ol_quantity, ol_amount, ol_dist_info        
     },
     
     "ORDER_STATUS": {
-        "getCustomerByCustomerId": "SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_BALANCE FROM CUSTOMER USE KEYS [(to_string($1) || '.' ||  to_string($2) || '.' ||  to_string($3)) ]", # w_id, d_id, c_id
+        "getCustomerByCustomerId": "SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_BALANCE FROM CUSTOMER WHERE C_W_ID = $1? AND C_D_ID = $2 AND C_ID = $3", # w_id, d_id, c_id
         "getCustomersByLastName": "SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_BALANCE FROM CUSTOMER WHERE C_W_ID = $1 AND C_D_ID = $2 AND C_LAST = $3 ORDER BY C_FIRST", # w_id, d_id, c_last
         "getLastOrder": "SELECT O_ID, O_CARRIER_ID, O_ENTRY_D FROM ORDERS WHERE O_W_ID = $1 AND O_D_ID = $2 AND O_C_ID = $3 ORDER BY O_ID DESC LIMIT 1", # w_id, d_id, c_id
         "getOrderLines": "SELECT OL_SUPPLY_W_ID, OL_I_ID, OL_QUANTITY, OL_AMOUNT, OL_DELIVERY_D FROM ORDER_LINE WHERE OL_W_ID = $1 AND OL_D_ID = $2 AND OL_O_ID = $3", # w_id, d_id, o_id        
@@ -81,10 +81,10 @@ TXN_QUERIES = {
         "updateWarehouseBalance": "UPDATE WAREHOUSE SET W_YTD = W_YTD + $1 WHERE W_ID = $2", # h_amount, w_id
         "getDistrict": "SELECT D_NAME, D_STREET_1, D_STREET_2, D_CITY, D_STATE, D_ZIP FROM DISTRICT WHERE D_W_ID = $1 AND D_ID = $2", # w_id, d_id
         "updateDistrictBalance": "UPDATE DISTRICT SET D_YTD = D_YTD + $1 WHERE D_W_ID  = $2 AND D_ID = $3", # h_amount, d_w_id, d_id
-        "getCustomerByCustomerId": "SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_STREET_1, C_STREET_2, C_CITY, C_STATE, C_ZIP, C_PHONE, C_SINCE, C_CREDIT, C_CREDIT_LIM, C_DISCOUNT, C_BALANCE, C_YTD_PAYMENT, C_PAYMENT_CNT, C_DATA FROM CUSTOMER USE KEYS [(to_string($1) || '.' ||  to_string($2) || '.' ||  to_string($3)) ]", # w_id, d_id, c_id
+         "getCustomerByCustomerId": "SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_STREET_1, C_STREET_2, C_CITY, C_STATE, C_ZIP, C_PHONE, C_SINCE, C_CREDIT, C_CREDIT_LIM, C_DISCOUNT, C_BALANCE, C_YTD_PAYMENT, C_PAYMENT_CNT, C_DATA FROM CUSTOMER WHERE C_W_ID = $1 AND C_D_ID = $2 AND C_ID = $3", # w_id, d_id, c_id
         "getCustomersByLastName": "SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_STREET_1, C_STREET_2, C_CITY, C_STATE, C_ZIP, C_PHONE, C_SINCE, C_CREDIT, C_CREDIT_LIM, C_DISCOUNT, C_BALANCE, C_YTD_PAYMENT, C_PAYMENT_CNT, C_DATA FROM CUSTOMER WHERE C_W_ID = $1 AND C_D_ID = $2 AND C_LAST = $3 ORDER BY C_FIRST", # w_id, d_id, c_last
-        "updateBCCustomer": "UPDATE CUSTOMER USE KEYS [(to_string($6) || '.' ||  to_string($6) || '.' ||  to_string($7)) ] SET C_BALANCE = $1, C_YTD_PAYMENT = $2, C_PAYMENT_CNT = $3, C_DATA = $4 ", # c_balance, c_ytd_payment, c_payment_cnt, c_data, c_w_id, c_d_id, c_id
-        "updateGCCustomer": "UPDATE CUSTOMER USE KEYS [(to_string($4) || '.' ||  to_string($5) || '.' ||  to_string($6)) ] SET C_BALANCE = $1, C_YTD_PAYMENT = $2, C_PAYMENT_CNT = $3 ", # c_balance, c_ytd_payment, c_payment_cnt, c_w_id, c_d_id, c_id
+        "updateBCCustomer": "UPDATE CUSTOMER SET C_BALANCE = $1, C_YTD_PAYMENT = $2, C_PAYMENT_CNT = $3, C_DATA = $4 WHERE C_W_ID = $5 AND C_D_ID = $6 AND C_ID = $7", # c_balance, c_ytd_payment, c_payment_cnt, c_data, c_w_id, c_d_id, c_id
+        "updateGCCustomer": "UPDATE CUSTOMER SET C_BALANCE = $1, C_YTD_PAYMENT = $2, C_PAYMENT_CNT = $3 WHERE C_W_ID = $4 AND C_D_ID = $5 AND C_ID = $6", # c_balance, c_ytd_payment, c_payment_cnt, c_w_id, c_d_id, c_id
         "insertHistory": "INSERT INTO HISTORY(KEY, VALUE) VALUES (TO_STRING($1)|| '.' || TO_STRING($2)|| '.' || TO_STRING($3), {\\\"H_C_ID\\\":$1, \\\"H_C_D_ID\\\":$2, \\\"H_C_W_ID\\\":$3, \\\"H_D_ID\\\":$4, \\\"H_W_ID\\\":$5, \\\"H_DATE\\\":$6, \\\"H_AMOUNT\\\":$7, \\\"H_DATA\\\":$8})"
     },
     
@@ -281,18 +281,18 @@ def runNQuery(query, txid):
                 stmt = stmt + '}'
 
         # print len(param)
-        print stmt
+        #print stmt
         url = "http://{0}/query".format(QUERY_URL)
         query = json.loads(stmt)
-        print query
+        #print query
         #r = globcon.post(url, data=query, stream=False, headers={'Connection':'close'})
         r = globcon.post(url, data=query, stream=False)
-        print r.json()
-        print r.json()['results']
-        print ('Kamini:results')
-        print r.json()['results']
-        print ('Kamini:status')
-        print r.json()['status']
+        #print r.json()
+        #print r.json()['results']
+        #print ('Kamini:results')
+        #print r.json()['results']
+        #print ('Kamini:status')
+        #print r.json()['status']
         return r.json()['results']
 ## ----------------------------------------------
 ## runNQueryParam
@@ -328,27 +328,27 @@ def runNQueryParam(query, param, txid):
         stmt = stmt + ']"'
         stmt = stmt + ', "txid" : "' + txid + '"}'
         
-        print ('Kamini:stmt')
-        print stmt
+        #print ('Kamini:stmt')
+        #print stmt
         url = "http://{0}/query".format(QUERY_URL)
-        print ('Kamini:query')
+        #print ('Kamini:query')
         query = json.loads(stmt)
-        print query
+        #print query
         #r = globcon.post(url, data=query, stream=False, headers={'Connection':'close'})
         r = globcon.post(url, data=query, stream=False)
-        print r.json()
-        print ('Kamini:results')
-        print r.json()['results']
-        print ('Kamini:status')
-        print r.json()['status']
-        print ('Kamini:metrics')
-        print r.json()['metrics']
+        #print r.json()
+        #print ('Kamini:results')
+        #print r.json()['results']
+        #print ('Kamini:status')
+        #print r.json()['status']
+        #print ('Kamini:metrics')
+        #print r.json()['metrics']
 	return r.json()['results'],r.json()['status']
 
 ## ==============================================
-## NestDriver
+## NesttpccDriver
 ## ==============================================
-class NestDriver(AbstractDriver):
+class NesttpccDriver(AbstractDriver):
     DEFAULT_CONFIG = {
         "host":         ("The hostname to N1QL service", "ec2-52-6-226-203.compute-1.amazonaws.com" ),
         "port":         ("The port number to N1QL Service", 8093 ),
@@ -358,7 +358,7 @@ class NestDriver(AbstractDriver):
     
     def __init__(self, ddl):
         global globcon
-        super(NestDriver, self).__init__("nest", ddl)
+        super(NesttpccDriver, self).__init__("nesttpcc", ddl)
         self.database = None
         s = self.conn = requests.Session()
         s.keep_alive = True
@@ -398,7 +398,7 @@ class NestDriver(AbstractDriver):
     ## makeDefaultConfig
     ## ----------------------------------------------
     def makeDefaultConfig(self):
-        return NestDriver.DEFAULT_CONFIG
+        return NesttpccDriver.DEFAULT_CONFIG
     
     ## ----------------------------------------------
     ## loadConfig
@@ -600,18 +600,18 @@ class NestDriver(AbstractDriver):
             result,status = runNQueryParam(self.prepared_dict[ txn + "deleteNewOrder"], [d_id, w_id, no_o_id], txid)
             if (status == 'errors'):
                      runNQuery("ROLLBACK WORK",txid)
-                     print "ROLLBACK 1"
+                     print "ROLLBACK "
                      continue
             result,status = runNQueryParam(self.prepared_dict[ txn + "updateOrders"], [o_carrier_id, no_o_id, d_id, w_id], txid)
             if (status == 'errors'):
                      runNQuery("ROLLBACK WORK",txid)
-                     print "ROLLBACK 2"
+                     print "ROLLBACK "
                      continue
             result,status = runNQueryParam(self.prepared_dict[ txn + "updateOrderLine"], [ol_delivery_d, no_o_id, d_id, w_id], txid)
 
             if (status == 'errors'):
                      runNQuery("ROLLBACK WORK",txid)
-                     print "ROLLBACK 3"
+                     print "ROLLBACK "
                      continue
             # These must be logged in the "result file" according to TPC-C 2.7.2.2 (page 39)
             # We remove the queued time, completed time, w_id, and o_carrier_id: the client can figure
@@ -624,7 +624,7 @@ class NestDriver(AbstractDriver):
 
             if (status == 'errors'):
                      runNQuery("ROLLBACK WORK",txid)
-                     print "ROLLBACK 4"
+                     print "ROLLBACK "
                      continue
             result.append((d_id, no_o_id))
         ## FOR
@@ -660,8 +660,8 @@ class NestDriver(AbstractDriver):
         items = [ ]
 	rs = runNQuery("BEGIN WORK","");
         txid = rs[0]['txid']
-        #print ('Kamini:txid')
-        #print txid
+        print ('Kamini:txid')
+        print txid
         for i in range(len(i_ids)):
             ## Determine if this is an all local order or not
             all_local = all_local and i_w_ids[i] == w_id
@@ -678,7 +678,7 @@ class NestDriver(AbstractDriver):
                 ## TODO Abort here!
 		# print "//aborted"
 		runNQuery("ROLLBACK WORK",txid);
-		print "ROLLBACK 5";
+		print "ROLLBACK ";
 		return;
         ## FOR
         
@@ -710,19 +710,19 @@ class NestDriver(AbstractDriver):
         rs, status = runNQueryParam(self.prepared_dict[ txn + "incrementNextOrderId"], [d_next_o_id + 1, d_id, w_id], txid)
         if (status == 'errors'):
                      runNQuery("ROLLBACK WORK",txid)
-                     print "ROLLBACK 6"
+                     print "ROLLBACK "
                      return
         rs, status = runNQueryParam(self.prepared_dict[ txn + "createOrder"], [d_next_o_id, d_id, w_id, c_id, o_entry_d, o_carrier_id, ol_cnt, all_local], txid)
         #if (status == 'errors'):
                      #runNQuery("ROLLBACK WORK",txid);
-                     #print "ROLLBACK 7";
+                     #print "ROLLBACK ";
                      #return
         rs,status = runNQueryParam(self.prepared_dict[ txn + "createNewOrder"], [d_next_o_id, d_id, w_id], txid)
         if (status == 'errors'):
                      runNQuery("ROLLBACK WORK",txid);
-                     print "ROLLBACK 8";
+                     print "ROLLBACK ";
                      return
-        #print "NewOrder Stage #1"
+        print "NewOrder Stage #1"
 
         ## ----------------
         ## Insert Order Item Information
@@ -778,7 +778,7 @@ class NestDriver(AbstractDriver):
             rs, status = runNQueryParam(self.prepared_dict[ txn + "updateStock"], [s_quantity, s_ytd, s_order_cnt, s_remote_cnt, ol_i_id, ol_supply_w_id], txid)
             if (status == 'errors'):
                      runNQuery("ROLLBACK WORK",txid)
-                     print "ROLLBACK 9"
+                     print "ROLLBACK "
                      continue
 
             if i_data.find(constants.ORIGINAL_STRING) != -1 and s_data.find(constants.ORIGINAL_STRING) != -1:
@@ -793,7 +793,7 @@ class NestDriver(AbstractDriver):
             rs, status = runNQueryParam(self.prepared_dict[ txn + "createOrderLine"], [d_next_o_id, d_id, w_id, ol_number, ol_i_id, ol_supply_w_id, o_entry_d, ol_quantity, ol_amount, s_dist_xx], txid)
             #if (status == 'errors'):
             #         runNQuery("ROLLBACK WORK",txid)
-            #         print "ROLLBACK 10"
+            #         print "ROLLBACK "
             #         continue
 
             ## Add the info to be returned
@@ -893,7 +893,7 @@ class NestDriver(AbstractDriver):
         c_payment_cnt = customer['C_PAYMENT_CNT'] + 1
         c_data = customer['C_DATA']
 
-	#print "doPayment: Stage 2"
+	print "doPayment: Stage 2"
 
         warehouse,status = runNQueryParam(self.prepared_dict[ txn + "getWarehouse"], [w_id], txid)
 
@@ -902,15 +902,15 @@ class NestDriver(AbstractDriver):
         rs, status = runNQueryParam(self.prepared_dict[ txn + "updateWarehouseBalance"], [h_amount, w_id], txid)
         if (status == 'errors'):
                      runNQuery("ROLLBACK WORK",txid);
-                     print "ROLLBACK 11";
+                     print "ROLLBACK ";
                      return
         rs, status = runNQueryParam(self.prepared_dict[ txn + "updateDistrictBalance"], [h_amount, w_id, d_id], txid)
 
         if (status == 'errors'):
                      runNQuery("ROLLBACK WORK",txid);
-                     print "ROLLBACK 12";
+                     print "ROLLBACK ";
                      return
-	#print "doPayment: Stage3"
+	print "doPayment: Stage3"
 
         # Customer Credit Information
         if customer['C_CREDIT'] == constants.BAD_CREDIT:
@@ -920,16 +920,16 @@ class NestDriver(AbstractDriver):
             rs, status = runNQueryParam(self.prepared_dict[ txn + "updateBCCustomer"], [c_balance, c_ytd_payment, c_payment_cnt, c_data, c_w_id, c_d_id, c_id], txid)
             if (status == 'errors'):
                      runNQuery("ROLLBACK WORK",txid);
-                     print "ROLLBACK 13";
+                     print "ROLLBACK ";
                      return
         else:
             c_data = ""
             rs, status = runNQueryParam(self.prepared_dict[ txn + "updateGCCustomer"], [c_balance, c_ytd_payment, c_payment_cnt, c_w_id, c_d_id, c_id], txid)
             if (status == 'errors'):
                      runNQuery("ROLLBACK WORK",txid);
-                     print "ROLLBACK 14";
+                     print "ROLLBACK ";
                      return
-	#print "doPayment: Stage4"
+	print "doPayment: Stage4"
         # Concatenate w_name, four spaces, d_name
 	# print "warehouse %s" % (str(warehouse))
 	# print "district %s" % (str(district))
@@ -938,7 +938,7 @@ class NestDriver(AbstractDriver):
         rs, status = runNQueryParam(self.prepared_dict[ txn + "insertHistory"], [c_id, c_d_id, c_w_id, d_id, w_id, h_date, h_amount, h_data], txid)
         #if (status == 'errors'):
         #             runNQuery("ROLLBACK WORK",txid);
-        #             print "ROLLBACK 15";
+        #             print "ROLLBACK ";
         #             return
 
 	runNQuery("COMMIT WORK", txid);
