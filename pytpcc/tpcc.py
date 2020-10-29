@@ -183,6 +183,8 @@ if __name__ == '__main__':
                          help='password for couchbase', default = "password")
     aparser.add_argument('--query-url',
                          help='query-url <ip>:port', default = "127.0.0.1:8093")
+    aparser.add_argument('--multi-query-url',
+                         help = 'multi-query-url <ip>:port', default = "127.0.0.1:8093")
     aparser.add_argument('--config', type=file,
                          help='Path to driver configuration file')
     aparser.add_argument('--reset', action='store_true',
@@ -213,9 +215,13 @@ if __name__ == '__main__':
     query_url = "127.0.0.1:9000"
     userid = "Administrator"
     password = "password"
+    multi_query_url = "127.0.0.1:9000"
     if args['query_url']:
         query_url = args['query_url']
     os.environ["QUERY_URL"] = query_url
+    if args['multi_query_url']:
+        multi_query_url = args['multi_query_url']
+        os.environ["MULTI_QUERY_URL"] = multi_query_url
     if args['userid']:
         userid = args['userid']
     os.environ["USER_ID"] = userid
