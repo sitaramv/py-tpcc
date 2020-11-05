@@ -619,21 +619,12 @@ class NestDriver(AbstractDriver):
             ol_total = rs2[0]['SUM_OL_AMOUNT']
 
             result,status = runNQueryParam(self.prepared_dict[ txn + "deleteNewOrder"], [d_id, w_id, no_o_id], txid, randomhost=self.RANDOM_QUERY_URL)
-            if (status == 'errors'):
-                     runNQuery("ROLLBACK WORK",txid, randomhost=self.RANDOM_QUERY_URL)
-                     #print "ROLLBACK 1"
-                     continue
+            
             result,status = runNQueryParam(self.prepared_dict[ txn + "updateOrders"], [o_carrier_id, no_o_id, d_id, w_id], txid, randomhost=self.RANDOM_QUERY_URL)
-            if (status == 'errors'):
-                     runNQuery("ROLLBACK WORK",txid, randomhost=self.RANDOM_QUERY_URL)
-                     #print "ROLLBACK 2"
-                     continue
+            
             result,status = runNQueryParam(self.prepared_dict[ txn + "updateOrderLine"], [ol_delivery_d, no_o_id, d_id, w_id], txid, randomhost=self.RANDOM_QUERY_URL)
 
-            if (status == 'errors'):
-                     runNQuery("ROLLBACK WORK",txid, randomhost=self.RANDOM_QUERY_URL)
-                     #print "ROLLBACK 3"
-                     continue
+            
             # These must be logged in the "result file" according to TPC-C 2.7.2.2 (page 39)
             # We remove the queued time, completed time, w_id, and o_carrier_id: the client can figure
             # them out
@@ -642,11 +633,6 @@ class NestDriver(AbstractDriver):
             # assert ol_total > 0.0
 
             result,status = runNQueryParam(self.prepared_dict[ txn + "updateCustomer"], [ol_total, c_id, d_id, w_id], txid, randomhost=self.RANDOM_QUERY_URL)
-
-            if (status == 'errors'):
-                     runNQuery("ROLLBACK WORK",txid, randomhost=self.RANDOM_QUERY_URL)
-                     #print "ROLLBACK 4"
-                     continue
             result.append((d_id, no_o_id))
         ## FOR
 
@@ -729,20 +715,11 @@ class NestDriver(AbstractDriver):
         o_carrier_id = constants.NULL_CARRIER_ID
         
         rs, status = runNQueryParam(self.prepared_dict[ txn + "incrementNextOrderId"], [d_next_o_id + 1, d_id, w_id], txid, randomhost=self.RANDOM_QUERY_URL)
-        if (status == 'errors'):
-                     runNQuery("ROLLBACK WORK",txid, randomhost=self.RANDOM_QUERY_URL)
-                     #print "ROLLBACK 6"
-                     return
+        
         rs, status = runNQueryParam(self.prepared_dict[ txn + "createOrder"], [d_next_o_id, d_id, w_id, c_id, o_entry_d, o_carrier_id, ol_cnt, all_local], txid, randomhost=self.RANDOM_QUERY_URL)
-        #if (status == 'errors'):
-                     #runNQuery("ROLLBACK WORK",txid);
-                     #print "ROLLBACK 7";
-                     #return
+        
         rs,status = runNQueryParam(self.prepared_dict[ txn + "createNewOrder"], [d_next_o_id, d_id, w_id], txid, randomhost=self.RANDOM_QUERY_URL)
-        if (status == 'errors'):
-                     runNQuery("ROLLBACK WORK",txid, randomhost=self.RANDOM_QUERY_URL);
-                     #print "ROLLBACK 8";
-                     return
+        
         #print "NewOrder Stage #1"
 
         ## ----------------
@@ -797,10 +774,6 @@ class NestDriver(AbstractDriver):
 
             # print "NewOrder Stage #5"
             rs, status = runNQueryParam(self.prepared_dict[ txn + "updateStock"], [s_quantity, s_ytd, s_order_cnt, s_remote_cnt, ol_i_id, ol_supply_w_id], txid, randomhost=self.RANDOM_QUERY_URL)
-            if (status == 'errors'):
-                     runNQuery("ROLLBACK WORK",txid, randomhost=self.RANDOM_QUERY_URL)
-                     #print "ROLLBACK 9"
-                     continue
 
             if i_data.find(constants.ORIGINAL_STRING) != -1 and s_data.find(constants.ORIGINAL_STRING) != -1:
                 brand_generic = 'B'
@@ -812,10 +785,7 @@ class NestDriver(AbstractDriver):
             total += ol_amount
 
             rs, status = runNQueryParam(self.prepared_dict[ txn + "createOrderLine"], [d_next_o_id, d_id, w_id, ol_number, ol_i_id, ol_supply_w_id, o_entry_d, ol_quantity, ol_amount, s_dist_xx], txid, randomhost=self.RANDOM_QUERY_URL)
-            #if (status == 'errors'):
-            #         runNQuery("ROLLBACK WORK",txid)
-            #         print "ROLLBACK 10"
-            #         continue
+            
 
             ## Add the info to be returned
             item_data.append( (i_name, s_quantity, brand_generic, i_price, ol_amount) )
@@ -921,16 +891,10 @@ class NestDriver(AbstractDriver):
         district,status = runNQueryParam(self.prepared_dict[ txn + "getDistrict"], [w_id, d_id], txid, randomhost=self.RANDOM_QUERY_URL)
 
         rs, status = runNQueryParam(self.prepared_dict[ txn + "updateWarehouseBalance"], [h_amount, w_id], txid, randomhost=self.RANDOM_QUERY_URL)
-        if (status == 'errors'):
-                     runNQuery("ROLLBACK WORK",txid, randomhost=self.RANDOM_QUERY_URL);
-                     #print "ROLLBACK 11";
-                     return
+        
         rs, status = runNQueryParam(self.prepared_dict[ txn + "updateDistrictBalance"], [h_amount, w_id, d_id], txid, randomhost=self.RANDOM_QUERY_URL)
 
-        if (status == 'errors'):
-                     runNQuery("ROLLBACK WORK",txid, randomhost=self.RANDOM_QUERY_URL);
-                     #print "ROLLBACK 12";
-                     return
+        
 	#print "doPayment: Stage3"
 
         # Customer Credit Information
@@ -939,17 +903,11 @@ class NestDriver(AbstractDriver):
             c_data = (newData + "|" + c_data)
             if len(c_data) > constants.MAX_C_DATA: c_data = c_data[:constants.MAX_C_DATA]
             rs, status = runNQueryParam(self.prepared_dict[ txn + "updateBCCustomer"], [c_balance, c_ytd_payment, c_payment_cnt, c_data, c_w_id, c_d_id, c_id], txid, randomhost=self.RANDOM_QUERY_URL)
-            if (status == 'errors'):
-                     runNQuery("ROLLBACK WORK",txid, randomhost=self.RANDOM_QUERY_URL);
-                     #print "ROLLBACK 13";
-                     return
+            
         else:
             c_data = ""
             rs, status = runNQueryParam(self.prepared_dict[ txn + "updateGCCustomer"], [c_balance, c_ytd_payment, c_payment_cnt, c_w_id, c_d_id, c_id], txid, randomhost=self.RANDOM_QUERY_URL)
-            if (status == 'errors'):
-                     runNQuery("ROLLBACK WORK",txid, randomhost=self.RANDOM_QUERY_URL);
-                     #print "ROLLBACK 14";
-                     return
+            
 	#print "doPayment: Stage4"
         # Concatenate w_name, four spaces, d_name
 	# print "warehouse %s" % (str(warehouse))
@@ -957,10 +915,7 @@ class NestDriver(AbstractDriver):
         h_data = "%s    %s" % (warehouse[0]['W_NAME'], district[0]['D_NAME'])
         # Create the history record
         rs, status = runNQueryParam(self.prepared_dict[ txn + "insertHistory"], [c_id, c_d_id, c_w_id, d_id, w_id, h_date, h_amount, h_data], txid, randomhost=self.RANDOM_QUERY_URL)
-        #if (status == 'errors'):
-        #             runNQuery("ROLLBACK WORK",txid);
-        #             print "ROLLBACK 15";
-        #             return
+        
 
 	runNQuery("COMMIT WORK", txid, randomhost=self.RANDOM_QUERY_URL);
         #Keshav: self.conn.commit()
