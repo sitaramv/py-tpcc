@@ -349,7 +349,7 @@ def runNQueryParam(query, param, txid):
 ## ==============================================
 ## nestMongoDriver
 ## ==============================================
-class NestmongodenormDriver(AbstractDriver):
+class NestdenormDriver(AbstractDriver):
     DEFAULT_CONFIG = {
         "host":         ("The hostname to N1QL service", "ec2-52-6-226-203.compute-1.amazonaws.com" ),
         "port":         ("The port number to N1QL Service", 8093 ),
@@ -360,7 +360,7 @@ class NestmongodenormDriver(AbstractDriver):
     def __init__(self, ddl):
         global globcon
         global initonce
-        super(NestmongodenormDriver, self).__init__("nestmongodenorm", ddl)
+        super(NestdenormDriver, self).__init__("nestdenorm", ddl)
         self.database = None
         s = self.conn = requests.Session()
         s.keep_alive = True
@@ -421,7 +421,7 @@ class NestmongodenormDriver(AbstractDriver):
     ## makeDefaultConfig
     ## ----------------------------------------------
     def makeDefaultConfig(self):
-        return NestmongodenormDriver.DEFAULT_CONFIG
+        return NestdenormDriver.DEFAULT_CONFIG
     
     ## ----------------------------------------------
     ## loadConfig
