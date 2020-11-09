@@ -87,7 +87,7 @@ TXN_QUERIES = {
         "getCustomersByLastName": "SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_STREET_1, C_STREET_2, C_CITY, C_STATE, C_ZIP, C_PHONE, C_SINCE, C_CREDIT, C_CREDIT_LIM, C_DISCOUNT, C_BALANCE, C_YTD_PAYMENT, C_PAYMENT_CNT, C_DATA FROM CUSTOMER WHERE C_W_ID = $1 AND C_D_ID = $2 AND C_LAST = $3 ORDER BY C_FIRST", # w_id, d_id, c_last
         "updateBCCustomer": "UPDATE CUSTOMER USE KEYS [(to_string($6) || '.' ||  to_string($6) || '.' ||  to_string($7)) ] SET C_BALANCE = $1, C_YTD_PAYMENT = $2, C_PAYMENT_CNT = $3, C_DATA = $4 ", # c_balance, c_ytd_payment, c_payment_cnt, c_data, c_w_id, c_d_id, c_id
         "updateGCCustomer": "UPDATE CUSTOMER USE KEYS [(to_string($4) || '.' ||  to_string($5) || '.' ||  to_string($6)) ] SET C_BALANCE = $1, C_YTD_PAYMENT = $2, C_PAYMENT_CNT = $3 ", # c_balance, c_ytd_payment, c_payment_cnt, c_w_id, c_d_id, c_id
-        "insertHistory": "INSERT INTO HISTORY(KEY, VALUE) VALUES (TO_STRING($1)|| '.' || TO_STRING($2)|| '.' || TO_STRING($3), {\\\"H_C_ID\\\":$1, \\\"H_C_D_ID\\\":$2, \\\"H_C_W_ID\\\":$3, \\\"H_D_ID\\\":$4, \\\"H_W_ID\\\":$5, \\\"H_DATE\\\":$6, \\\"H_AMOUNT\\\":$7, \\\"H_DATA\\\":$8})"
+        "insertHistory": "INSERT INTO HISTORY(KEY, VALUE) VALUES (TO_STRING($6), {\\\"H_C_ID\\\":$1, \\\"H_C_D_ID\\\":$2, \\\"H_C_W_ID\\\":$3, \\\"H_D_ID\\\":$4, \\\"H_W_ID\\\":$5, \\\"H_DATE\\\":$6, \\\"H_AMOUNT\\\":$7, \\\"H_DATA\\\":$8})"
     },
     
     "STOCK_LEVEL": {
