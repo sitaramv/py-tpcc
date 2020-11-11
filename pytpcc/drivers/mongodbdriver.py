@@ -192,7 +192,7 @@ TABLE_INDEXES = {
 ## ==============================================
 class MongodbDriver(AbstractDriver):
     DEFAULT_CONFIG = {
-        "uri":              ("The mongodb connection string or URI", "mongodb://localhost:27017"),
+        "uri":              ("The mongodb connection string or URI", "mongodb://172.23.100.121:27014"),
         "name":             ("Database name", "tpcc"),
         "denormalize":      ("If true, data will be denormalized using MongoDB schema design best practices", True),
         "notransactions":   ("If true, transactions will not be used (benchmarking only)", False),
