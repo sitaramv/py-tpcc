@@ -27,6 +27,7 @@
 import logging
 import time
 from collections import Counter
+import pprint
 
 class Results:
 
@@ -249,6 +250,6 @@ class Results:
                 ('false', 'true')[driver.all_in_one_txn], ('false', 'true')[driver.retry_writes],total_cnt,total_aborts)
         if driver:
             driver.save_result(result_doc)
-        print(result_doc)
+        pprint.pprint(result_doc)
         return ret.encode('ascii', "ignore")
 ## CLASS
