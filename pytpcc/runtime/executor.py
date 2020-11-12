@@ -67,6 +67,7 @@ class Executor:
             except KeyboardInterrupt:
                 return -1
             except (Exception, AssertionError), ex:
+                logging.warning("Failed to execute Transaction '%s': %s" % (txn, ex))
                 if debug: traceback.print_exc(file=sys.stdout)
                 if self.stop_on_error: raise
                 r.abortTransaction(txn_id)
