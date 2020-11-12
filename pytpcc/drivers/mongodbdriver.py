@@ -329,7 +329,8 @@ class MongodbDriver(AbstractDriver):
                 if load_indexes and name in TABLE_INDEXES:
                     uniq = True
                     for index in TABLE_INDEXES[name]:
-                        self.database[name].create_index(index, unique=uniq)
+                        self.database[name].create_index(index, unique=False)
+
                         uniq = False
                 ## IF
             ## FOR
