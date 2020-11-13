@@ -38,7 +38,7 @@ for ((i=0; i < 9 ; i++))
 do
 	echo curl -X POST -u $Auth -d name=${bucket[$i]} -d ramQuotaMB=${bucket_memory[$i]} -d authType=none -d proxyPort=$port $Site -d threadsNumber=$high
 let port\+=1
-curl -X POST -u $Auth -d name=${bucket[$i]} -d ramQuotaMB=${bucket_memory[$i]} -d authType=none $Site -d threadsNumber=$high
+curl -X POST -u $Auth -d name=${bucket[$i]} -d ramQuotaMB=${bucket_memory[$i]} -d authType=none $Site -d threadsNumber=$high -d replicaNumber=0
 let port\+=1
 done
 
