@@ -340,7 +340,6 @@ def runNQueryParam(query, param, txid, randomhost=None):
         #print ('Kamini:query')
         query = json.loads(stmt)
         #print query
-        #r = globcon.post(url, data=query, stream=False, headers={'Connection':'close'})
         r = globcon.post(url, data=query, stream=False)
         #print r.json()
         #print ('Kamini:results')
@@ -596,7 +595,6 @@ class NestDriver(AbstractDriver):
         ol_delivery_d = params["ol_delivery_d"]
 
         result = [ ]
-	print "With Transactions enabled"
         for d_id in range(1, constants.DISTRICTS_PER_WAREHOUSE+1):
 	    rs = runNQuery("BEGIN WORK","", randomhost=self.RANDOM_QUERY_URL);
             txid = rs[0]['txid']
