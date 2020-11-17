@@ -800,7 +800,7 @@ class NestDriver(AbstractDriver):
 
             # print "NewOrder Stage #5"
             rs, status = runNQueryParam(self.prepared_dict[ txn + "updateStock"], [s_quantity, s_ytd, s_order_cnt, s_remote_cnt, ol_i_id, ol_supply_w_id], txid, randomhost=self.RANDOM_QUERY_URL)
-        if (status == 'errors'):
+            if (status == 'errors'):
                      runNQuery("ROLLBACK WORK",txid,"",randomhost=self.RANDOM_QUERY_URL)
                      return
 
