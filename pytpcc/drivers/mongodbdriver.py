@@ -258,14 +258,14 @@ class MongodbDriver(AbstractDriver):
                 config[key] = str(MongodbDriver.DEFAULT_CONFIG[key][1])
 
         logging.debug("Default plus our config %s", pformat(config))
-        self.denormalize = config['denormalize'] == 'True'
-        self.no_transactions = config['notransactions'] == 'True'
+        self.denormalize = config['denormalize'] == 'False'
+        self.no_transactions = config['notransactions'] == 'False'
         self.shards = int(config['shards'])
         self.warehouses = config['warehouses']
-        self.find_and_modify = config['findandmodify'] == 'True'
+        self.find_and_modify = config['findandmodify'] == 'False'
         self.causal_consistency = config['causal_consistency'] == 'True'
-        self.retry_writes = config['retry_writes'] == 'True'
-        self.secondary_reads = config['secondary_reads'] == 'True'
+        self.retry_writes = config['retry_writes'] == 'False'
+        self.secondary_reads = config['secondary_reads'] == 'False'
         if self.secondary_reads:
             self.read_preference = "nearest"
 
@@ -329,7 +329,7 @@ class MongodbDriver(AbstractDriver):
                 if load_indexes and name in TABLE_INDEXES:
                     uniq = True
                     for index in TABLE_INDEXES[name]:
-                        self.database[name].create_index(index, unique=False)
+                        self.database[name].create_index(index, unique=uniq)
 
                         uniq = False
                 ## IF
