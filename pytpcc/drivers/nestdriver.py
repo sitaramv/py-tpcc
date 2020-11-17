@@ -625,12 +625,12 @@ class NestDriver(AbstractDriver):
             result,status = runNQueryParam(self.prepared_dict[ txn + "deleteNewOrder"], [d_id, w_id, no_o_id], txid, randomhost=self.RANDOM_QUERY_URL)
             
             result,status = runNQueryParam(self.prepared_dict[ txn + "updateOrders"], [o_carrier_id, no_o_id, d_id, w_id], txid, randomhost=self.RANDOM_QUERY_URL)
-           if (status == 'errors'):
+            if (status == 'errors'):
                      runNQuery("ROLLBACK WORK",txid,"",randomhost=self.RANDOM_QUERY_URL)
                      continue
 
             result,status = runNQueryParam(self.prepared_dict[ txn + "updateOrderLine"], [ol_delivery_d, no_o_id, d_id, w_id], txid, randomhost=self.RANDOM_QUERY_URL)
-           if (status == 'errors'):
+            if (status == 'errors'):
                      runNQuery("ROLLBACK WORK",txid,"",randomhost=self.RANDOM_QUERY_URL)
                      continue
 
@@ -644,7 +644,7 @@ class NestDriver(AbstractDriver):
             # assert ol_total > 0.0
 
             result,status = runNQueryParam(self.prepared_dict[ txn + "updateCustomer"], [ol_total, c_id, d_id, w_id], txid, randomhost=self.RANDOM_QUERY_URL)
-           if (status == 'errors'):
+            if (status == 'errors'):
                      runNQuery("ROLLBACK WORK",txid,"",randomhost=self.RANDOM_QUERY_URL)
                      continue
 
