@@ -267,7 +267,7 @@ class MongodbDriver(AbstractDriver):
         self.retry_writes = config['retry_writes'] == 'False'
         self.secondary_reads = config['secondary_reads'] == 'False'
         if self.secondary_reads:
-            self.read_preference = "nearest"
+            self.read_preference = "primaryPreferred"
 
         if 'write_concern' in config and config['write_concern'] and config['write_concern'] != '1':
             # only expecting string 'majority' as an alternative to w:1
