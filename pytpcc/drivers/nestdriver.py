@@ -993,7 +993,7 @@ class NestDriver(AbstractDriver):
         d_id = params["d_id"]
         threshold = params["threshold"]
 
-	rs = runNQuery("BEGIN WORK","","30s",randomhost=self.RANDOM_QUERY_URL);
+	rs = runNQuery("BEGIN WORK","","2m",randomhost=self.RANDOM_QUERY_URL);
         txid = rs[0]['txid']
         result, status = runNQueryParam(self.prepared_dict[ txn + "getOId"], [w_id, d_id], txid, randomhost=self.RANDOM_QUERY_URL)
         assert result
