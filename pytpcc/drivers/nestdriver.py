@@ -1004,7 +1004,8 @@ class NestDriver(AbstractDriver):
         #self.conn.commit()
         rs, status = runNQueryParam(self.prepared_dict[ txn + "getCustomerOrdersByDistrict"], [d_id], txid, randomhost=self.RANDOM_QUERY_URL)
         rs, status = runNQueryParam(self.prepared_dict[ txn + "getOrdersByDistrict"], [d_id], txid, randomhost=self.RANDOM_QUERY_URL)
-        rs, status = runNQueryParam(self.prepared_dict[ txn + 'ansigetStockCount'], [w_id, d_id, o_id, (o_id - 20), w_id, threshold], txid, randomhost=self.RANDOM_QUERY_URL)
+        #Taking too long with 10Warehouses.So disabling 
+        #rs, status = runNQueryParam(self.prepared_dict[ txn + 'ansigetStockCount'], [w_id, d_id, o_id, (o_id - 20), w_id, threshold], txid, randomhost=self.RANDOM_QUERY_URL)
 
 	runNQuery("COMMIT WORK", txid, "", randomhost=self.RANDOM_QUERY_URL);
         return int(result[0]['CNT_OL_I_ID'])
