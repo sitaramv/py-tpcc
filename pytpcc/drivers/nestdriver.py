@@ -334,7 +334,10 @@ def runNQueryParam(query, param, txid, randomhost=None):
                         myarg = myarg + ","
         stmt = stmt + myarg
         stmt = stmt + ']"'
-        stmt = stmt + ', "txid" : "' + txid + '"}'
+        if (len(txid) >  0):
+                stmt = stmt + ', "txid" : "' + txid + '"}'
+        else:
+                stmt = stmt + '}'
         
         ##print ('Kamini:stmt')
         #print stmt
@@ -993,20 +996,20 @@ class NestDriver(AbstractDriver):
         d_id = params["d_id"]
         threshold = params["threshold"]
 
-	rs = runNQuery("BEGIN WORK","","2m",randomhost=self.RANDOM_QUERY_URL);
-        txid = rs[0]['txid']
-        result, status = runNQueryParam(self.prepared_dict[ txn + "getOId"], [w_id, d_id], txid, randomhost=self.RANDOM_QUERY_URL)
+	#rs = runNQuery("BEGIN WORK","","2m",randomhost=self.RANDOM_QUERY_URL);
+        #txid = rs[0]['txid']
+        result, status = runNQueryParam(self.prepared_dict[ txn + "getOId"], [w_id, d_id],"", randomhost=self.RANDOM_QUERY_URL)
         assert result
         o_id = result[0]['D_NEXT_O_ID']
 
-        result, status = runNQueryParam(self.prepared_dict[ txn + "getStockCount"], [w_id, d_id, o_id, (o_id - 20), w_id, threshold], txid, randomhost=self.RANDOM_QUERY_URL)
+        result, status = runNQueryParam(self.prepared_dict[ txn + "getStockCount"], [w_id, d_id, o_id, (o_id - 20), w_id, threshold], "", randomhost=self.RANDOM_QUERY_URL)
 
         #self.conn.commit()
-        rs, status = runNQueryParam(self.prepared_dict[ txn + "getCustomerOrdersByDistrict"], [d_id], txid, randomhost=self.RANDOM_QUERY_URL)
-        rs, status = runNQueryParam(self.prepared_dict[ txn + "getOrdersByDistrict"], [d_id], txid, randomhost=self.RANDOM_QUERY_URL)
+        #rs, status = runNQueryParam(self.prepared_dict[ txn + "getCustomerOrdersByDistrict"], [d_id], "", randomhost=self.RANDOM_QUERY_URL)
+        #rs, status = runNQueryParam(self.prepared_dict[ txn + "getOrdersByDistrict"], [d_id], "", randomhost=self.RANDOM_QUERY_URL)
         #Taking too long with 10Warehouses.So disabling 
         #rs, status = runNQueryParam(self.prepared_dict[ txn + 'ansigetStockCount'], [w_id, d_id, o_id, (o_id - 20), w_id, threshold], txid, randomhost=self.RANDOM_QUERY_URL)
 
-	runNQuery("COMMIT WORK", txid, "", randomhost=self.RANDOM_QUERY_URL);
+	#runNQuery("COMMIT WORK", txid, "", randomhost=self.RANDOM_QUERY_URL);
         return int(result[0]['CNT_OL_I_ID'])
 ## CLASS
