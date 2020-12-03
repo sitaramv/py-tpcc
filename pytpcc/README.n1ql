@@ -54,6 +54,8 @@
     python ./tpcc.py --warehouses 1 --duration 600 --clients <no of clients> nestdenorm --query-url <server ip> --no-load --userid Administrator --password password
     
     For running with N1QL transactions with collections enabled:
+
+    cp constants.py.collections constants.py
     cd util
     sh -x ./cbcrbucketcollection.sh 127.0.0.1:8091 Administrator:password
     ./run_sqlcollections.sh < ./cbcrindexcollection.sql
