@@ -290,15 +290,15 @@ def runNQuery(query, txid, txtimeout, randomhost=None):
         #print stmt
         url = "http://{0}/query".format(QUERY_URL)
         query = json.loads(stmt)
-        print query
+        #print query
         #r = globcon.post(url, data=query, stream=False, headers={'Connection':'close'})
         r = globcon.post(url, data=query, stream=False)
-        print r.json()
-        print r.json()['results']
-        print ('Kamini:results')
-        print r.json()['results']
-        print ('Kamini:status')
-        print r.json()['status']
+        #print r.json()
+        #print r.json()['results']
+        #print ('Kamini:results')
+        #print r.json()['results']
+        #print ('Kamini:status')
+        #print r.json()['status']
         return r.json()['results']
 ## ----------------------------------------------
 ## runNQueryParam
@@ -339,20 +339,20 @@ def runNQueryParam(query, param, txid, randomhost=None):
         else:
                 stmt = stmt + '}'
         
-        print ('Kamini:stmt')
-        print stmt
+        #print ('Kamini:stmt')
+        #print stmt
         url = "http://{0}/query".format(QUERY_URL)
-        print ('Kamini:query')
+        #print ('Kamini:query')
         query = json.loads(stmt)
         #print query
         r = globcon.post(url, data=query, stream=False)
-        print r.json()
-        print ('Kamini:results')
-        print r.json()['results']
-        print ('Kamini:status')
-        print r.json()['status']
-        print ('Kamini:metrics')
-        print r.json()['metrics']
+        #print r.json()
+        #print ('Kamini:results')
+        #print r.json()['results']
+        #print ('Kamini:status')
+        #print r.json()['status']
+        #print ('Kamini:metrics')
+        #print r.json()['metrics']
 	return r.json()['results'],r.json()['status']
 
 ## ==============================================
