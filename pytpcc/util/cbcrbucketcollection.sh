@@ -2,7 +2,7 @@
 
 echo Delete Buckets
 
-Url=${1:-127.0.0.1:8091}
+Url=${1:-127.0.0.1}
 Site=http://$Url/pools/default/buckets/
 Auth=${2:-Administrator:password}
 #memory = (512 100 128 128 256 1024 1024 512 '218)#@memory = ("512" "100" "128" "128" "256" "1024" "1024" "512" "218")
@@ -34,7 +34,7 @@ done
 echo "Creating Buckets"
 
 # Bucket Params
-Site=http://$Url/pools/default/buckets
+Site=http://$Url:8091/pools/default/buckets
 port=${3:-11224}
 low=${3:-3}
 high=${3:-8}
@@ -51,27 +51,27 @@ done
 echo "sleep 30 seconds"
 sleep 30
 #create scope
-echo curl http://127.0.0.1:8093/query/service -u $Auth -d 'statement=create scope default.tpcc'
-curl http://127.0.0.1:8093/query/service -u $Auth -d 'statement=create scope default.tpcc'
+echo curl http://$Url:8093/query/service -u $Auth -d 'statement=create scope default.tpcc'
+curl http://$Url:8093/query/service -u $Auth -d 'statement=create scope default.tpcc'
 
 sleep 30
 #create collections
-echo curl http://127.0.0.1:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.CUSTOMER'
-curl http://127.0.0.1:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.CUSTOMER'
-echo curl http://127.0.0.1:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.DISTRICT'
-curl http://127.0.0.1:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.DISTRICT'
-echo curl http://127.0.0.1:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.HISTORY'
-curl http://127.0.0.1:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.HISTORY'
-echo curl http://127.0.0.1:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.ITEM'
-curl http://127.0.0.1:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.ITEM'
-echo curl http://127.0.0.1:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.NEW_ORDER'
-curl http://127.0.0.1:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.ORDERS'
-echo curl http://127.0.0.1:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.ORDER_LINE'
-curl http://127.0.0.1:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.ORDER_LINE'
-echo curl http://127.0.0.1:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.STOCK'
-curl http://127.0.0.1:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.STOCK'
-echo curl http://127.0.0.1:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.WAREHOUSE'
-curl http://127.0.0.1:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.WAREHOUSE'
-echo curl http://127.0.0.1:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.ORDERS'
-curl http://127.0.0.1:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.NEW_ORDER'
+echo curl http://$Url:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.CUSTOMER'
+curl http://$Url:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.CUSTOMER'
+echo curl http://$Url:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.DISTRICT'
+curl http://$Url:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.DISTRICT'
+echo curl http://$Url:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.HISTORY'
+curl http://$Url:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.HISTORY'
+echo curl http://$Url:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.ITEM'
+curl http://$Url:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.ITEM'
+echo curl http://$Url:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.NEW_ORDER'
+curl http://$Url:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.ORDERS'
+echo curl http://$Url:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.ORDER_LINE'
+curl http://$Url:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.ORDER_LINE'
+echo curl http://$Url:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.STOCK'
+curl http://$Url:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.STOCK'
+echo curl http://$Url:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.WAREHOUSE'
+curl http://$Url:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.WAREHOUSE'
+echo curl http://$Url:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.ORDERS'
+curl http://$Url:8093/query/service -u $Auth -d 'statement=create collection default.tpcc.NEW_ORDER'
 
