@@ -293,6 +293,8 @@ def runNQuery(query, txid, txtimeout, randomhost=None):
         #print query
         #r = globcon.post(url, data=query, stream=False, headers={'Connection':'close'})
         r = globcon.post(url, data=query, stream=False)
+        if r.json()['status'] != 'success':
+            print('Transaction BEGIN/COMMIT Failed | Query : ', query, '| txid :', txid, '| Response', r.json())
         #print r.json()
         #print r.json()['results']
         #print ('Kamini:results')
@@ -346,6 +348,8 @@ def runNQueryParam(query, param, txid, randomhost=None):
         query = json.loads(stmt)
         #print query
         r = globcon.post(url, data=query, stream=False)
+        if r.json()['status'] != 'success':
+            print('Query Failed | Query : ', query, '| txid :', txid, '| Response', r.json())
         #print r.json()
         #print ('Kamini:results')
         #print r.json()['results']
