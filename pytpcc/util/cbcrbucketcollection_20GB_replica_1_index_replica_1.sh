@@ -7,7 +7,7 @@ Site=http://$Url/pools/default/buckets/
 Auth=${2:-Administrator:password}
 #memory = (512 100 128 128 256 1024 1024 512 '218)#@memory = ("512" "100" "128" "128" "256" "1024" "1024" "512" "218")
 #bucket_memory=(512 100 128 128 256 1024 1024 512 218)
-bucket_memory=(40480)
+bucket_memory=(20480)
 bucket=(default)
 collections=(CUSTOMER DISTRICT HISTORY ITEM NEW_ORDER ORDERS ORDER_LINE STOCK WAREHOUSE)
 #bucket_memory = (100 100 100 100 100 100 100 100 100)
