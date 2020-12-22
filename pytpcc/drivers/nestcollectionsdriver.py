@@ -283,6 +283,7 @@ def runNQuery(query, txid, txtimeout, randomhost=None):
                 stmt = stmt + ', "txid" : "' + txid + '"'
         if (len(txtimeout) >  0):
                 stmt = stmt + ', "txtimeout" : "' + txtimeout + '"'
+        stmt = stmt + ', "durability_level" : "none"'
         stmt = stmt + ', "scan_consistency" : "not_bounded"' +  '}'
         #stmt = stmt + ', "scan_consistency" : "request_plus"' +  '}'
 
