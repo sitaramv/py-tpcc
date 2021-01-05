@@ -141,20 +141,22 @@ def startExecution(driverClass, scaleParameters, args, config):
         r = pool.apply_async(executorFunc, (driverClass, scaleParameters, args, config, debug,))
 
         worker_results.append(r)
-    print('worker_results after finishing spinning client threads', worker_results)
+
     ## FOR
-    time.sleep(0.5)
+    time.sleep(20.0)
     print('wait before close')
     pool.close()
 
-    time.sleep(0.5)
+    time.sleep(20.0)
     print('wait before join')
     pool.join()
     
     total_results = results.Results()
+
     for asyncr in worker_results:
-        asyncr.wait()
+        asyncr.wait(timeout=2.0)
         r = asyncr.get()
+        print('printing item from worker_results', r)
         assert r != None, "No results object returned!"
         if type(r) == int and r == -1: sys.exit(1)
         total_results.append(r)
