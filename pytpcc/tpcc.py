@@ -128,26 +128,25 @@ def loaderFunc(driverClass, scaleParameters, args, config, w_ids, debug):
 ## ==============================================
 def startExecution(driverClass, scaleParameters, args, config):
     logging.debug("Creating client pool with %d processes" % args['clients'])
-    print('Creating client pool with %d processes' % args['clients'])
 
     pool = multiprocessing.Pool(args['clients'])
     debug = logging.getLogger().isEnabledFor(logging.DEBUG)
     
     worker_results = [ ]
     for i in range(args['clients']):
-        random_num = randint(1, 20)
-        time.sleep(round((random_num*0.1),2))
+        #random_num = randint(1, 20)
+        #time.sleep(round((random_num*0.1),2))
         print('')
         r = pool.apply_async(executorFunc, (driverClass, scaleParameters, args, config, debug,))
 
         worker_results.append(r)
 
     ## FOR
-    time.sleep(20.0)
+    time.sleep(0.5)
     print('wait before close')
     pool.close()
 
-    time.sleep(20.0)
+    time.sleep(0.5)
     print('wait before join')
     pool.join()
     
