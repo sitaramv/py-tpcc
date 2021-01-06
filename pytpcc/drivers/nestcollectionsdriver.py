@@ -294,8 +294,8 @@ def runNQuery(query, txid, txtimeout, randomhost=None):
         #print query
         #r = globcon.post(url, data=query, stream=False, headers={'Connection':'close'})
         r = globcon.post(url, data=query, stream=False)
-        #if r.json()['status'] != 'success':
-            #print ('Transaction BEGIN/COMMIT Failed | Query : ',query,'| txid :',txid, '| Response', r.json())
+        if r.json()['status'] != 'success':
+            print ('Transaction BEGIN/COMMIT Failed | Query : ',query,'| txid :',txid, '| Response', r.json())
         #print r.json()
         #print r.json()['results']
         #print ('Kamini:results')
@@ -349,8 +349,8 @@ def runNQueryParam(query, param, txid, randomhost=None):
         query = json.loads(stmt)
         #print query
         r = globcon.post(url, data=query, stream=False)
-        #if r.json()['status'] != 'success':
-            #print('Query Failed | Query : ', query, '| txid :', txid, '| Response', r.json())
+        if r.json()['status'] != 'success':
+            print('Query Failed | Query : ', query, '| txid :', txid, '| Response', r.json())
         #print r.json()
         #print ('Kamini:results')
         #print r.json()['results']
@@ -603,7 +603,7 @@ class NestcollectionsDriver(AbstractDriver):
         if self.multiple_host:
             randomhost = random.choice(self.MUlTI_QUERY_LIST)
         else:
-            randomhost = QUERY_URL
+            randomhost = os.environ["QUERY_URL"]
 
 	# print "Entering doDelivery"
         txn = "DELIVERY"
@@ -679,7 +679,7 @@ class NestcollectionsDriver(AbstractDriver):
         if self.multiple_host:
             randomhost = random.choice(self.MUlTI_QUERY_LIST)
         else:
-            randomhost = QUERY_URL
+            randomhost = os.environ["QUERY_URL"]
 
 	# print "Entering doNewOrder"
         txn = "NEW_ORDER"
@@ -865,7 +865,7 @@ class NestcollectionsDriver(AbstractDriver):
         if self.multiple_host:
             randomhost = random.choice(self.MUlTI_QUERY_LIST)
         else:
-            randomhost = QUERY_URL
+            randomhost = os.environ["QUERY_URL"]
 
 	# print "Entering doOrderStatus"
         txn = "ORDER_STATUS"
@@ -913,7 +913,7 @@ class NestcollectionsDriver(AbstractDriver):
         if self.multiple_host:
             randomhost = random.choice(self.MUlTI_QUERY_LIST)
         else:
-            randomhost = QUERY_URL
+            randomhost = os.environ["QUERY_URL"]
 
         txn = "PAYMENT"
         q = TXN_QUERIES[txn]
@@ -1023,7 +1023,7 @@ class NestcollectionsDriver(AbstractDriver):
         if self.multiple_host:
             randomhost = random.choice(self.MUlTI_QUERY_LIST)
         else:
-            randomhost = QUERY_URL
+            randomhost = os.environ["QUERY_URL"]
 
 	# print "Entering doStockLevel"
         txn = "STOCK_LEVEL"
