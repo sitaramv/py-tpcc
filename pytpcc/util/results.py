@@ -110,7 +110,7 @@ class Results:
             ret += "Data Loading Time: %d seconds\n\n" % (load_time)
         
         ret += "Execution Results after %d seconds\n%s" % (duration, line)
-        ret += f % ("", "Executed", u"Time (µs)", "Rate", "Avg Latency")
+        ret += f % ("", "Executed", u"Time (µs)", "Rate")
         
         total_time = 0
         total_cnt = 0
@@ -118,8 +118,8 @@ class Results:
             txn_time = self.txn_times[txn]
             txn_cnt = self.txn_counters[txn]
             rate = u"%.02f txn/s" % ((txn_cnt / duration))
-            avg_latency = u"%.03f sec" % ((txn_cnt / txn_time))
-            ret += f % (txn, str(txn_cnt), str(txn_time * 1000000), rate, avg_latency)
+            #avg_latency = u"%.03f sec" % ((txn_cnt / txn_time))
+            ret += f % (txn, str(txn_cnt), str(txn_time * 1000000), rate)
             
             total_time += txn_time
             total_cnt += txn_cnt
