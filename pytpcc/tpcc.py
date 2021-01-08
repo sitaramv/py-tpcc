@@ -142,18 +142,15 @@ def startExecution(driverClass, scaleParameters, args, config):
         worker_results.append(r)
 
     ## FOR
-    time.sleep(0.5)
-    print('wait before close')
+
     pool.close()
 
-    time.sleep(0.5)
-    print('wait before join')
     pool.join()
     
     total_results = results.Results()
 
     for asyncr in worker_results:
-        asyncr.wait(timeout=2.0)
+        asyncr.wait()
         r = asyncr.get()
         print('printing item from worker_results', r)
         assert r != None, "No results object returned!"
