@@ -152,7 +152,6 @@ def startExecution(driverClass, scaleParameters, args, config):
     for asyncr in worker_results:
         asyncr.wait()
         r = asyncr.get()
-        print('printing item from worker_results', r)
         assert r != None, "No results object returned!"
         if type(r) == int and r == -1: sys.exit(1)
         total_results.append(r)
