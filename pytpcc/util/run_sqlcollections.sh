@@ -5,6 +5,6 @@ do
 sql1=$line
 qc="&query_context=default:default.tpcc"
 sql="${sql1} ${qc}"
-echo curl -u Administrator:password -v $Site  -d statement="$sql" 
+#echo curl -u Administrator:password -v $Site  -d statement="$sql"
 curl -u Administrator:password -v $Site  -d statement="$sql" 
 done
