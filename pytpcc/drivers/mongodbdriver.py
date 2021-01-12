@@ -327,7 +327,10 @@ class MongodbDriver(AbstractDriver):
                     continue
                 self.__dict__[name.lower()] = self.database[name]
                 if load_indexes and name in TABLE_INDEXES:
-                    uniq = True
+                    if self.shards > 1:
+                        uniq = False
+                    else:
+                        uniq = True
                     for index in TABLE_INDEXES[name]:
                         self.database[name].create_index(index, unique=uniq)
 
