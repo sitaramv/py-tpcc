@@ -276,6 +276,7 @@ def runNQuery(query, txid, txtimeout, randomhost=None):
             PASSWORD = os.environ["PASSWORD"]
         except Exception,ex:
             print ex
+        durability_level = os.environ["DURABILITY_LEVEL"]
         if randomhost:
             QUERY_URL = randomhost
         stmt = '{"statement" : "' + str(query) + '"'
@@ -283,7 +284,7 @@ def runNQuery(query, txid, txtimeout, randomhost=None):
                 stmt = stmt + ', "txid" : "' + txid + '"'
         if (len(txtimeout) >  0):
                 stmt = stmt + ', "txtimeout" : "' + txtimeout + '"'
-        stmt = stmt + ', "durability_level" : "none"'
+        stmt = stmt + ', "durability_level" : "' + durability_level + '"'
         stmt = stmt + ', "scan_consistency" : "not_bounded"' +  '}'
         #stmt = stmt + ', "scan_consistency" : "request_plus"' +  '}'
 
@@ -380,6 +381,7 @@ class NestcollectionsDriver(AbstractDriver):
         globcon = s
         self.cursor = None
         self.multiple_host = False
+
         try:
             QUERY_URL = os.environ["QUERY_URL"]
             USER_ID = os.environ["USER_ID"]

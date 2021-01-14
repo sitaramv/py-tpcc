@@ -219,6 +219,8 @@ if __name__ == '__main__':
                          help='Print out the default configuration file for the system and exit')
     aparser.add_argument('--debug', action='store_true',
                          help='Enable debug log messages')
+    aparser.add_argument('--durability_level',
+                         help='durability level', default="majority")
     args = vars(aparser.parse_args())
     print args
     if args['debug']: logging.getLogger().setLevel(logging.DEBUG)
@@ -232,6 +234,9 @@ if __name__ == '__main__':
     if args['multi_query_url']:
         multi_query_url = args['multi_query_url']
         os.environ["MULTI_QUERY_URL"] = multi_query_url
+    if args['durability_level']:
+        durability_level = args['durability_level']
+        os.environ["DURABILITY_LEVEL"] = durability_level
     if args['userid']:
         userid = args['userid']
     os.environ["USER_ID"] = userid
