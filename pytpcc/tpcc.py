@@ -45,7 +45,7 @@ from random import randint
 
 logging.basicConfig(level = logging.INFO,
                     format="%(asctime)s [%(funcName)s:%(lineno)03d] %(levelname)-5s: %(message)s",
-                    datefmt="%m-%d-%Y %H:%M:%S",
+                    datefmt="%m-%d-%Y %H:%M:%S,uuu",
                     stream = sys.stdout)
                     
 ## ==============================================
@@ -137,7 +137,7 @@ def startExecution(driverClass, scaleParameters, args, config):
         #random_num = randint(1, 20)
         #time.sleep(round((random_num*0.1),2))
         print('')
-        r = pool.apply_async(executorFunc, (driverClass, scaleParameters, args, config, debug,))
+        r = pool.apply_async(executorFunc, (i, driverClass, scaleParameters, args, config, debug,))
 
         worker_results.append(r)
 
@@ -163,7 +163,7 @@ def startExecution(driverClass, scaleParameters, args, config):
 ## ==============================================
 ## executorFunc
 ## ==============================================
-def executorFunc(driverClass, scaleParameters, args, config, debug):
+def executorFunc(clientId, driverClass, scaleParameters, args, config, debug):
     driver = driverClass(args['ddl'])
     assert driver != None
     logging.debug("Starting client execution: %s" % driver)
@@ -172,7 +172,7 @@ def executorFunc(driverClass, scaleParameters, args, config, debug):
     config['reset'] = False
     driver.loadConfig(config)
 
-    e = executor.Executor(driver, scaleParameters, stop_on_error=args['stop_on_error'])
+    e = executor.Executor(clientId, driver, scaleParameters, stop_on_error=args['stop_on_error'])
     driver.executeStart()
     results = e.execute(args['duration'])
     driver.executeFinish()

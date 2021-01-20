@@ -44,7 +44,8 @@ from util import *
 
 class Executor:
     
-    def __init__(self, driver, scaleParameters, stop_on_error = False):
+    def __init__(self, clientId, driver, scaleParameters, stop_on_error = False):
+        self.clientId = clientId
         self.driver = driver
         self.scaleParameters = scaleParameters
         self.stop_on_error = stop_on_error
@@ -56,11 +57,19 @@ class Executor:
         logging.info("Executing benchmark for %d seconds" % duration)
         start = r.startBenchmark()
         debug = logging.getLogger().isEnabledFor(logging.DEBUG)
+        tnum = 0
+        stime = time.time()
+        
 
         while (time.time() - start) <= duration:
             txn, params = self.doOne()
             txn_id = r.startTransaction(txn)
             
+            tnum = tnum + 1
+            if ( (tnum % 50) == 0):
+#                 logging.info("Client ID # %d transaction # %d  elapseTime %ds" % (self.clientId, tnum, time.time() - stime))
+                 stime = time.time()
+                  
             if debug: logging.debug("Executing '%s' transaction" % txn)
             try:
                 val = self.driver.executeTransaction(txn, params)
