@@ -45,7 +45,7 @@ from random import randint
 
 logging.basicConfig(level = logging.INFO,
                     format="%(asctime)s [%(funcName)s:%(lineno)03d] %(levelname)-5s: %(message)s",
-                    datefmt="%m-%d-%Y %H:%M:%S,uuu",
+                    datefmt="%m-%d-%Y %H:%M:%S",
                     stream = sys.stdout)
                     
 ## ==============================================

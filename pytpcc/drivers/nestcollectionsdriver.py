@@ -616,7 +616,7 @@ class NestcollectionsDriver(AbstractDriver):
 
         result = [ ]
         for d_id in range(1, constants.DISTRICTS_PER_WAREHOUSE+1):
-	    rs = runNQuery("BEGIN WORK","","30s", randomhost=randomhost);
+	    rs = runNQuery("BEGIN WORK","","3s", randomhost=randomhost);
             txid = rs[0]['txid']
 	    newOrder,status = runNQueryParam(self.prepared_dict[ txn + "getNewOrder"], [d_id, w_id], txid, randomhost=randomhost)
             if len(newOrder) == 0:

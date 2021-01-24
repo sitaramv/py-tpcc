@@ -16,7 +16,7 @@ drop index STOCK.S_W_I_ID using gsi
 drop index WAREHOUSE.WH_ID using gsi
 drop primary index on CUSTOMER using gsi
 drop primary index on DISTRICT using gsi
-drop primary index on HISTORY gsi
+drop primary index on HISTORY using gsi
 drop primary index on ITEM using gsi
 drop primary index on NEW_ORDER using gsi
 drop primary index on ORDERS using gsi

@@ -3,8 +3,9 @@
 echo Delete Buckets
 
 Url=${1:-127.0.0.1}
-Site=http://$Url/pools/default/buckets/
 Auth=${2:-Administrator:password}
+replica=${3:-0}
+Site=http://$Url:8091/pools/default/buckets/
 #memory = (512 100 128 128 256 1024 1024 512 '218)#@memory = ("512" "100" "128" "128" "256" "1024" "1024" "512" "218")
 #bucket_memory=(512 100 128 128 256 1024 1024 512 218)
 bucket_memory=(2048)
@@ -35,16 +36,16 @@ echo "Creating Buckets"
 
 # Bucket Params
 Site=http://$Url:8091/pools/default/buckets
-port=${3:-11224}
-low=${3:-3}
-high=${3:-8}
+port=${4:-11224}
+low=${4:-3}
+high=${4:-8}
 
 # Create bucket
 for ((i=0; i < 1 ; i++))
 do
-	echo curl -X POST -u $Auth -d name=${bucket[$i]} -d ramQuotaMB=${bucket_memory[$i]} -d authType=none $Site -d threadsNumber=$high -d replicaNumber=0
+	echo curl -X POST -u $Auth -d name=${bucket[$i]} -d ramQuotaMB=${bucket_memory[$i]} -d authType=none $Site -d threadsNumber=$high -d replicaNumber=$replica
 let port\+=1
-curl -X POST -u $Auth -d name=${bucket[$i]} -d ramQuotaMB=${bucket_memory[$i]} -d authType=none  $Site -d threadsNumber=$high -d replicaNumber=0
+curl -X POST -u $Auth -d name=${bucket[$i]} -d ramQuotaMB=${bucket_memory[$i]} -d authType=none  $Site -d threadsNumber=$high -d replicaNumber=$replica
 let port\+=1
 done
 
