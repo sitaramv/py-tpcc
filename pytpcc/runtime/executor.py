@@ -67,7 +67,7 @@ class Executor:
             
             tnum = tnum + 1
             if ( (tnum % 50) == 0):
-                 logging.info("Client ID # %d transaction # %d  elapseTime %ds" % (self.clientId, tnum, time.time() - stime))
+                 logging.info("Client ID # %d transaction # %d  elapsedTime %ds" % (self.clientId, tnum, time.time() - stime))
                  stime = time.time()
                   
             if debug: logging.debug("Executing '%s' transaction" % txn)

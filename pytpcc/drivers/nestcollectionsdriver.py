@@ -264,6 +264,13 @@ TABLE_INDEXES = {
 
 globconn = 0
 
+def TxTimeoutFactor(txtimeout, factor):
+    tx = float(txtimeout)
+    if tx == 0 or factor == 0:
+        return "3s"
+    tx = tx * factor
+    return str(tx) + "s"
+
 ## ----------------------------------------------
 ## runNQuery
 ## ----------------------------------------------
@@ -381,6 +388,8 @@ class NestcollectionsDriver(AbstractDriver):
         globcon = s
         self.cursor = None
         self.multiple_host = False
+        self.txtimeout = TxTimeoutFactor(os.environ["TXTIMEOUT"], 1)
+        self.stock_txtimeout = TxTimeoutFactor(os.environ["TXTIMEOUT"], 40)
 
         try:
             QUERY_URL = os.environ["QUERY_URL"]
@@ -616,7 +625,7 @@ class NestcollectionsDriver(AbstractDriver):
 
         result = [ ]
         for d_id in range(1, constants.DISTRICTS_PER_WAREHOUSE+1):
-	    rs = runNQuery("BEGIN WORK","","3s", randomhost=randomhost);
+	    rs = runNQuery("BEGIN WORK","",self.txtimeout, randomhost=randomhost);
             txid = rs[0]['txid']
 	    newOrder,status = runNQueryParam(self.prepared_dict[ txn + "getNewOrder"], [d_id, w_id], txid, randomhost=randomhost)
             if len(newOrder) == 0:
@@ -704,7 +713,7 @@ class NestcollectionsDriver(AbstractDriver):
 
         all_local = True
         items = [ ]
-	rs = runNQuery("BEGIN WORK","","3s", randomhost=randomhost);
+	rs = runNQuery("BEGIN WORK","",self.txtimeout, randomhost=randomhost);
         txid = rs[0]['txid']
         #print ('Kamini:txid')
         #print txid
@@ -880,7 +889,7 @@ class NestcollectionsDriver(AbstractDriver):
         assert w_id, pformat(params)
         assert d_id, pformat(params)
 
-	rs = runNQuery("BEGIN WORK","","3s",randomhost=randomhost);
+	rs = runNQuery("BEGIN WORK","",self.txtimeout, randomhost=randomhost);
         txid = rs[0]['txid']
         if c_id != None:
             customerlist,status = runNQueryParam(self.prepared_dict[ txn + "getCustomerByCustomerId"], [w_id, d_id, c_id], txid, randomhost=randomhost)
@@ -928,7 +937,7 @@ class NestcollectionsDriver(AbstractDriver):
         c_last = params["c_last"]
         h_date = params["h_date"]
 
-	rs = runNQuery("BEGIN WORK","","3s",randomhost=randomhost);
+	rs = runNQuery("BEGIN WORK","",self.txtimeout, randomhost=randomhost);
         txid = rs[0]['txid']
 
         if c_id != None:
@@ -1035,7 +1044,7 @@ class NestcollectionsDriver(AbstractDriver):
         d_id = params["d_id"]
         threshold = params["threshold"]
 
-	#rs = runNQuery("BEGIN WORK","","2m",randomhost=randomhost);
+	#rs = runNQuery("BEGIN WORK","",self.stock_txtimeout, randomhost=randomhost);
         #txid = rs[0]['txid']
         result, status = runNQueryParam(self.prepared_dict[ txn + "getOId"], [w_id, d_id],"", randomhost=randomhost)
         assert result

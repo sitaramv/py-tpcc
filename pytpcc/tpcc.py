@@ -221,6 +221,8 @@ if __name__ == '__main__':
                          help='Enable debug log messages')
     aparser.add_argument('--durability_level',
                          help='durability level', default="majority")
+    aparser.add_argument('--txtimeout', metavar='N', type=float, default=5,
+                         help='txtimeout number in sec(ex: 2.5)')
     args = vars(aparser.parse_args())
     print args
     if args['debug']: logging.getLogger().setLevel(logging.DEBUG)
@@ -237,6 +239,8 @@ if __name__ == '__main__':
     if args['durability_level']:
         durability_level = args['durability_level']
         os.environ["DURABILITY_LEVEL"] = durability_level
+    if args['txtimeout']:
+        os.environ["TXTIMEOUT"] = str(args['txtimeout'])
     if args['userid']:
         userid = args['userid']
     os.environ["USER_ID"] = userid
