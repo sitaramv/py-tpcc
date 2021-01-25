@@ -284,6 +284,7 @@ def runNQuery(query, txid, txtimeout, randomhost=None):
         except Exception,ex:
             print ex
         durability_level = os.environ["DURABILITY_LEVEL"]
+        scan_consistency = os.environ["SCAN_CONSISTENCY"]
         if randomhost:
             QUERY_URL = randomhost
         stmt = '{"statement" : "' + str(query) + '"'
@@ -292,7 +293,10 @@ def runNQuery(query, txid, txtimeout, randomhost=None):
         if (len(txtimeout) >  0):
                 stmt = stmt + ', "txtimeout" : "' + txtimeout + '"'
         stmt = stmt + ', "durability_level" : "' + durability_level + '"'
-        stmt = stmt + ', "scan_consistency" : "not_bounded"' +  '}'
+        stmt = stmt + ', "scan_consistency" : "' + scan_consistency + '"'
+        stmt = stmt + '}'
+
+        #stmt = stmt + ', "scan_consistency" : "not_bounded"' +  '}'
         #stmt = stmt + ', "scan_consistency" : "request_plus"' +  '}'
 
         # print len(param)

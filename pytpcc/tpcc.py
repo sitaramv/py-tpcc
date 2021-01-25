@@ -223,6 +223,8 @@ if __name__ == '__main__':
                          help='durability level', default="majority")
     aparser.add_argument('--txtimeout', metavar='N', type=float, default=3,
                          help='txtimeout number in sec(ex: 2.5)')
+    aparser.add_argument('--scan_consistency', metavar='not_bounded', default="not_bounded",
+                         help='not_bounded,request_plus')
     args = vars(aparser.parse_args())
     print args
     if args['debug']: logging.getLogger().setLevel(logging.DEBUG)
@@ -241,6 +243,8 @@ if __name__ == '__main__':
         os.environ["DURABILITY_LEVEL"] = durability_level
     if args['txtimeout']:
         os.environ["TXTIMEOUT"] = str(args['txtimeout'])
+    if args['scan_consistency']:
+        os.environ["SCAN_CONSISTENCY"] = args['scan_consistency']
     if args['userid']:
         userid = args['userid']
     os.environ["USER_ID"] = userid
