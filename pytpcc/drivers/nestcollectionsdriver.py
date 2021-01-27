@@ -476,10 +476,13 @@ class NestcollectionsDriver(AbstractDriver):
         tuple_dicts = [ ]
         try:
             QUERY_URL = os.environ["QUERY_URL"]
+            if self.multiple_host:
+                QUERY_URL = random.choice(self.MUlTI_QUERY_LIST)
             USER_ID = os.environ["USER_ID"]
             PASSWORD = os.environ["PASSWORD"]
         except Exception,ex:
             print ex
+
         url = "http://{0}/query".format(QUERY_URL)   # Update this for your installation.
         ## We want to combine all of a CUSTOMER's ORDERS, ORDER_LINE, and HISTORY records
         ## into a single document
