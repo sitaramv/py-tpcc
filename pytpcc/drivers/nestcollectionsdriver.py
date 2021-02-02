@@ -50,6 +50,9 @@ USER_ID = "Administrator"
 PASSWORD = "password"
 TXN_QUERIES = {
     "DELIVERY": {
+        "beginWork": "BEGIN WORK",
+        "rollbackWork":"ROLLBACK WORK",
+        "commitWork":"COMMIT WORK",
         "getNewOrder": "SELECT NO_O_ID FROM default:default.tpcc.NEW_ORDER WHERE NO_D_ID = $1 AND NO_W_ID = $2 AND NO_O_ID > -1 LIMIT 1", #
         "deleteNewOrder": "DELETE FROM default:default.tpcc.NEW_ORDER WHERE NO_D_ID = $1 AND NO_W_ID = $2 AND NO_O_ID = $3", # d_id, w_id, no_o_id
         "getCId": "SELECT O_C_ID FROM default:default.tpcc.ORDERS WHERE O_ID = $1 AND O_D_ID = $2 AND O_W_ID = $3", # no_o_id, d_id, w_id
@@ -59,6 +62,9 @@ TXN_QUERIES = {
         "updateCustomer": "UPDATE default:default.tpcc.CUSTOMER USE KEYS [(to_string($4) || '.' || to_string($3) || '.' ||  to_string($2))] SET C_BALANCE = C_BALANCE + $1 ", # ol_total, c_id, d_id, w_id
     },
     "NEW_ORDER": {
+        "beginWork": "BEGIN WORK",
+        "rollbackWork":"ROLLBACK WORK",
+        "commitWork":"COMMIT WORK",
         "getWarehouseTaxRate": "SELECT W_TAX FROM default:default.tpcc.WAREHOUSE WHERE W_ID = $1", # w_id
         "getDistrict": "SELECT D_TAX, D_NEXT_O_ID FROM default:default.tpcc.DISTRICT WHERE D_ID = $1 AND D_W_ID = $2", # d_id, w_id
         "incrementNextOrderId": "UPDATE default:default.tpcc.DISTRICT SET D_NEXT_O_ID = $1 WHERE D_ID = $2 AND D_W_ID = $3", # d_next_o_id, d_id, w_id
@@ -72,6 +78,9 @@ TXN_QUERIES = {
     },
     
     "ORDER_STATUS": {
+        "beginWork": "BEGIN WORK",
+        "rollbackWork":"ROLLBACK WORK",
+        "commitWork":"COMMIT WORK",
         "getCustomerByCustomerId": "SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_BALANCE FROM default:default.tpcc.CUSTOMER USE KEYS [(to_string($1) || '.' ||  to_string($2) || '.' ||  to_string($3)) ]", # w_id, d_id, c_id
         "getCustomersByLastName": "SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_BALANCE FROM default:default.tpcc.CUSTOMER WHERE C_W_ID = $1 AND C_D_ID = $2 AND C_LAST = $3 ORDER BY C_FIRST", # w_id, d_id, c_last
         "getLastOrder": "SELECT O_ID, O_CARRIER_ID, O_ENTRY_D FROM default:default.tpcc.ORDERS WHERE O_W_ID = $1 AND O_D_ID = $2 AND O_C_ID = $3 ORDER BY O_ID DESC LIMIT 1", # w_id, d_id, c_id
@@ -79,6 +88,9 @@ TXN_QUERIES = {
     },
     
     "PAYMENT": {
+        "beginWork": "BEGIN WORK",
+        "rollbackWork":"ROLLBACK WORK",
+        "commitWork":"COMMIT WORK",
         "getWarehouse": "SELECT W_NAME, W_STREET_1, W_STREET_2, W_CITY, W_STATE, W_ZIP FROM default:default.tpcc.WAREHOUSE WHERE W_ID = $1", # w_id
         "updateWarehouseBalance": "UPDATE default:default.tpcc.WAREHOUSE SET W_YTD = W_YTD + $1 WHERE W_ID = $2", # h_amount, w_id
         "getDistrict": "SELECT D_NAME, D_STREET_1, D_STREET_2, D_CITY, D_STATE, D_ZIP FROM default:default.tpcc.DISTRICT WHERE D_W_ID = $1 AND D_ID = $2", # w_id, d_id
@@ -106,9 +118,9 @@ KEYNAMES = {
 	constants.TABLENAME_CUSTOMER: 	[2, 1, 0], # INTEGER
 	constants.TABLENAME_STOCK: 	[1, 0],  # INTEGER
 	constants.TABLENAME_ORDERS: 	[3, 2, 0], # INTEGER
-	constants.TABLENAME_NEW_ORDER: 	[1, 2, ], # INTEGER
+	constants.TABLENAME_NEW_ORDER: 	[1, 2, 0], # INTEGER
 	constants.TABLENAME_ORDER_LINE: [2, 1, 0, 3], # INTEGER
-	constants.TABLENAME_HISTORY: 	[0],  # INTEGER
+	constants.TABLENAME_HISTORY: 	[0, 5],  # INTEGER
 }
 
 
@@ -304,12 +316,13 @@ def runNQuery(query, txid, txtimeout, randomhost=None):
         url = "http://{0}/query".format(QUERY_URL)
         query = json.loads(stmt)
         #print query
-        #r = globcon.post(url, data=query, stream=False, headers={'Connection':'close'})
         r = globcon.post(url, data=query, stream=False)
         if r.json()['status'] != 'success':
             logging.debug('Transaction BEGIN/COMMIT Failed | Query : ',query,'| txid :',txid, '| Response', r.json())
-        #print r.json()
-        #print r.json()['results']
+            if ((r.json()['errors'][0]['cause']['msg']) != 'document exists' and (r.json()['errors'][0]['cause']['msg']) != 'write write conflict' and (r.json()['errors'][0]['cause']['class']) != 7):
+                print ('Kamini 1')
+                print (r.json()['errors'])   
+
         #print ('Kamini:results')
         #print r.json()['results']
         #print ('Kamini:status')
@@ -363,7 +376,9 @@ def runNQueryParam(query, param, txid, randomhost=None):
         r = globcon.post(url, data=query, stream=False)
         if r.json()['status'] != 'success':
             logging.debug('Query Failed | Query : ', query, '| txid :', txid, '| Response', r.json())
-        #print r.json()
+            print ('Kamini #2')
+            print query
+            print r.json()
         #print ('Kamini:results')
         #print r.json()['results']
         #print ('Kamini:status')
@@ -633,7 +648,7 @@ class NestcollectionsDriver(AbstractDriver):
 
         result = [ ]
         for d_id in range(1, constants.DISTRICTS_PER_WAREHOUSE+1):
-	    rs = runNQuery("BEGIN WORK","",self.delivery_txtimeout, randomhost=randomhost);
+	    rs = runNQuery(self.prepared_dict[ txn + "beginWork"],"",self.delivery_txtimeout, randomhost=randomhost);
             txid = rs[0]['txid']
 	    newOrder,status = runNQueryParam(self.prepared_dict[ txn + "getNewOrder"], [d_id, w_id], txid, randomhost=randomhost)
             if len(newOrder) == 0:
@@ -645,7 +660,7 @@ class NestcollectionsDriver(AbstractDriver):
             rs,status = runNQueryParam(self.prepared_dict[ txn + "getCId"], [no_o_id, d_id, w_id],txid, randomhost=randomhost)
 
             if (status == 'errors'):
-                     runNQuery("ROLLBACK WORK",txid,"",randomhost=randomhost)
+                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost)
                      continue
 
 	    c_id = rs[0]['O_C_ID']
@@ -653,7 +668,7 @@ class NestcollectionsDriver(AbstractDriver):
             rs2,status = runNQueryParam(self.prepared_dict[ txn + "sumOLAmount"], [no_o_id, d_id, w_id], txid, randomhost=randomhost)
 
             if (status == 'errors'):
-                     runNQuery("ROLLBACK WORK",txid,"",randomhost=randomhost)
+                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost)
                      continue
             ol_total = rs2[0]['SUM_OL_AMOUNT']
 
@@ -661,12 +676,12 @@ class NestcollectionsDriver(AbstractDriver):
             
             result,status = runNQueryParam(self.prepared_dict[ txn + "updateOrders"], [o_carrier_id, no_o_id, d_id, w_id], txid, randomhost=randomhost)
             if (status == 'errors'):
-                     runNQuery("ROLLBACK WORK",txid,"",randomhost=randomhost)
+                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost)
                      continue
 
             result,status = runNQueryParam(self.prepared_dict[ txn + "updateOrderLine"], [ol_delivery_d, no_o_id, d_id, w_id], txid, randomhost=randomhost)
             if (status == 'errors'):
-                     runNQuery("ROLLBACK WORK",txid,"",randomhost=randomhost)
+                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost)
                      continue
 
 
@@ -680,13 +695,13 @@ class NestcollectionsDriver(AbstractDriver):
 
             result,status = runNQueryParam(self.prepared_dict[ txn + "updateCustomer"], [ol_total, c_id, d_id, w_id], txid, randomhost=randomhost)
             if (status == 'errors'):
-                     runNQuery("ROLLBACK WORK",txid,"",randomhost=randomhost)
+                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost)
                      continue
 
             result.append((d_id, no_o_id))
         ## FOR
 
-	runNQuery("COMMIT WORK",txid,"",randomhost=randomhost);
+	runNQuery(self.prepared_dict[ txn + "commitWork"],txid,"",randomhost=randomhost);
 
         return result
 
@@ -721,7 +736,7 @@ class NestcollectionsDriver(AbstractDriver):
 
         all_local = True
         items = [ ]
-	rs = runNQuery("BEGIN WORK","",self.txtimeout, randomhost=randomhost);
+	rs = runNQuery(self.prepared_dict[ txn + "beginWork"],"",self.txtimeout, randomhost=randomhost);
         txid = rs[0]['txid']
         #print ('Kamini:txid')
         #print txid
@@ -740,7 +755,7 @@ class NestcollectionsDriver(AbstractDriver):
             if len(item) == 0:
                 ## TODO Abort here!
 		# print "//aborted"
-		runNQuery("ROLLBACK WORK",txid,"",randomhost=randomhost);
+		runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost);
 		#print "ROLLBACK 5";
 		return;
         ## FOR
@@ -752,7 +767,7 @@ class NestcollectionsDriver(AbstractDriver):
         rs, status = runNQueryParam(self.prepared_dict[ txn + "getWarehouseTaxRate"], [w_id], txid, randomhost=randomhost)
         customer_info = rs
         if (status == 'errors'):
-                     runNQuery("ROLLBACK WORK",txid,"",randomhost=randomhost)
+                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost)
                      return
         if len(rs) > 0:
             w_tax = rs[0]['W_TAX']
@@ -774,17 +789,17 @@ class NestcollectionsDriver(AbstractDriver):
         
         rs, status = runNQueryParam(self.prepared_dict[ txn + "incrementNextOrderId"], [d_next_o_id + 1, d_id, w_id], txid, randomhost=randomhost)
         if (status == 'errors'):
-                     runNQuery("ROLLBACK WORK",txid,"",randomhost=randomhost)
+                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost)
                      return
         
         rs, status = runNQueryParam(self.prepared_dict[ txn + "createOrder"], [d_next_o_id, d_id, w_id, c_id, o_entry_d, o_carrier_id, ol_cnt, all_local], txid, randomhost=randomhost)
         if (status == 'errors'):
-                     runNQuery("ROLLBACK WORK",txid,"",randomhost=randomhost)
+                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost)
                      return
         
         rs,status = runNQueryParam(self.prepared_dict[ txn + "createNewOrder"], [d_next_o_id, d_id, w_id], txid, randomhost=randomhost)
         if (status == 'errors'):
-                     runNQuery("ROLLBACK WORK",txid,"",randomhost=randomhost)
+                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost)
                      return
         
         #print "NewOrder Stage #1"
@@ -842,7 +857,7 @@ class NestcollectionsDriver(AbstractDriver):
             # print "NewOrder Stage #5"
             rs, status = runNQueryParam(self.prepared_dict[ txn + "updateStock"], [s_quantity, s_ytd, s_order_cnt, s_remote_cnt, ol_i_id, ol_supply_w_id], txid, randomhost=randomhost)
             if (status == 'errors'):
-                     runNQuery("ROLLBACK WORK",txid,"",randomhost=randomhost)
+                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost)
                      return
 
             if i_data.find(constants.ORIGINAL_STRING) != -1 and s_data.find(constants.ORIGINAL_STRING) != -1:
@@ -860,7 +875,7 @@ class NestcollectionsDriver(AbstractDriver):
             ## Add the info to be returned
             item_data.append( (i_name, s_quantity, brand_generic, i_price, ol_amount) )
         ## FOR
-        runNQuery("COMMIT WORK", txid, "",randomhost=randomhost);
+        runNQuery(self.prepared_dict[ txn + "commitWork"], txid, "",randomhost=randomhost);
         ## Commit!
         # keshav: self.conn.commit()
 
@@ -897,7 +912,7 @@ class NestcollectionsDriver(AbstractDriver):
         assert w_id, pformat(params)
         assert d_id, pformat(params)
 
-	rs = runNQuery("BEGIN WORK","",self.txtimeout, randomhost=randomhost);
+	rs = runNQuery(self.prepared_dict[ txn + "beginWork"],"",self.txtimeout, randomhost=randomhost);
         txid = rs[0]['txid']
         if c_id != None:
             customerlist,status = runNQueryParam(self.prepared_dict[ txn + "getCustomerByCustomerId"], [w_id, d_id, c_id], txid, randomhost=randomhost)
@@ -918,7 +933,7 @@ class NestcollectionsDriver(AbstractDriver):
             orderLines,status = runNQueryParam(self.prepared_dict[ txn + "getOrderLines"], [w_id, d_id, order[0]['O_ID']], txid, randomhost=randomhost)
         else:
             orderLines = [ ]
-	runNQuery("COMMIT WORK", txid, "",randomhost=randomhost);
+	runNQuery(self.prepared_dict[ txn + "commitWork"], txid, "",randomhost=randomhost);
 
         #Keshav: self.conn.commit()
         return [ customer, order, orderLines ]
@@ -945,7 +960,7 @@ class NestcollectionsDriver(AbstractDriver):
         c_last = params["c_last"]
         h_date = params["h_date"]
 
-	rs = runNQuery("BEGIN WORK","",self.txtimeout, randomhost=randomhost);
+	rs = runNQuery(self.prepared_dict[ txn + "beginWork"],"",self.txtimeout, randomhost=randomhost);
         txid = rs[0]['txid']
 
         if c_id != None:
@@ -970,22 +985,22 @@ class NestcollectionsDriver(AbstractDriver):
 
         warehouse,status = runNQueryParam(self.prepared_dict[ txn + "getWarehouse"], [w_id], txid, randomhost=randomhost)
         if (status == 'errors'):
-                     runNQuery("ROLLBACK WORK",txid,"",randomhost=randomhost);
+                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost);
                      return
 
         district,status = runNQueryParam(self.prepared_dict[ txn + "getDistrict"], [w_id, d_id], txid, randomhost=randomhost)
         if (status == 'errors'):
-                     runNQuery("ROLLBACK WORK",txid,"",randomhost=randomhost);
+                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost);
                      return
 
         rs, status = runNQueryParam(self.prepared_dict[ txn + "updateWarehouseBalance"], [h_amount, w_id], txid, randomhost=randomhost)
         if (status == 'errors'):
-                     runNQuery("ROLLBACK WORK",txid,"",randomhost=randomhost);
+                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost);
                      return
         
         rs, status = runNQueryParam(self.prepared_dict[ txn + "updateDistrictBalance"], [h_amount, w_id, d_id], txid, randomhost=randomhost)
         if (status == 'errors'):
-                     runNQuery("ROLLBACK WORK",txid,"",randomhost=randomhost);
+                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost);
                      return
 
         
@@ -998,14 +1013,14 @@ class NestcollectionsDriver(AbstractDriver):
             if len(c_data) > constants.MAX_C_DATA: c_data = c_data[:constants.MAX_C_DATA]
             rs, status = runNQueryParam(self.prepared_dict[ txn + "updateBCCustomer"], [c_balance, c_ytd_payment, c_payment_cnt, c_data, c_w_id, c_d_id, c_id], txid, randomhost=randomhost)
             if (status == 'errors'):
-                     runNQuery("ROLLBACK WORK",txid,"",randomhost=randomhost);
+                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost);
                      return
             
         else:
             c_data = ""
             rs, status = runNQueryParam(self.prepared_dict[ txn + "updateGCCustomer"], [c_balance, c_ytd_payment, c_payment_cnt, c_w_id, c_d_id, c_id], txid, randomhost=randomhost)
             if (status == 'errors'):
-                     runNQuery("ROLLBACK WORK",txid,"",randomhost=randomhost);
+                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost);
                      return
             
 	#print "doPayment: Stage4"
@@ -1016,11 +1031,11 @@ class NestcollectionsDriver(AbstractDriver):
         # Create the history record
         rs, status = runNQueryParam(self.prepared_dict[ txn + "insertHistory"], [c_id, c_d_id, c_w_id, d_id, w_id, h_date, h_amount, h_data], txid, randomhost=randomhost)
         if (status == 'errors'):
-                     runNQuery("ROLLBACK WORK",txid,"",randomhost=randomhost);
+                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost);
                      return
         
 
-	runNQuery("COMMIT WORK", txid,"",randomhost=randomhost);
+	runNQuery(self.prepared_dict[ txn + "commitWork"], txid,"",randomhost=randomhost);
         #Keshav: self.conn.commit()
 
         # TPC-C 2.5.3.3: Must display the following fields:
