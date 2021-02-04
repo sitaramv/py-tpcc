@@ -118,9 +118,9 @@ KEYNAMES = {
 	constants.TABLENAME_CUSTOMER: 	[2, 1, 0], # INTEGER
 	constants.TABLENAME_STOCK: 	[1, 0],  # INTEGER
 	constants.TABLENAME_ORDERS: 	[3, 2, 0], # INTEGER
-	constants.TABLENAME_NEW_ORDER: 	[1, 2, ], # INTEGER
+	constants.TABLENAME_NEW_ORDER: 	[1, 2, 0], # INTEGER
 	constants.TABLENAME_ORDER_LINE: [2, 1, 0, 3], # INTEGER
-	constants.TABLENAME_HISTORY: 	[0],  # INTEGER
+	constants.TABLENAME_HISTORY: 	[0, 5],  # INTEGER
 }
 
 
@@ -319,9 +319,9 @@ def runNQuery(query, txid, txtimeout, randomhost=None):
         r = globcon.post(url, data=query, stream=False)
         if r.json()['status'] != 'success':
             logging.debug('Transaction BEGIN/COMMIT Failed | Query : ',query,'| txid :',txid, '| Response', r.json())
-            #if ((r.json()['errors'][0]['cause']['msg']) != 'document exists' and (r.json()['errors'][0]['cause']['msg']) != 'write write conflict' and (r.json()['errors'][0]['cause']['class']) != 7):
-            #    print ('Kamini 1')
-            #    print (r.json()['errors'])   
+            if ((r.json()['errors'][0]['cause']['msg']) != 'document exists' and (r.json()['errors'][0]['cause']['msg']) != 'write write conflict' and (r.json()['errors'][0]['cause']['class']) != 7):
+                print ('Kamini 1')
+                print (r.json()['errors'])   
 
         #print ('Kamini:results')
         #print r.json()['results']
@@ -376,9 +376,9 @@ def runNQueryParam(query, param, txid, randomhost=None):
         r = globcon.post(url, data=query, stream=False)
         if r.json()['status'] != 'success':
             logging.debug('Query Failed | Query : ', query, '| txid :', txid, '| Response', r.json())
-            #print ('Kamini #2')
-            #print query
-            #print r.json()
+            print ('Kamini #2')
+            print query
+            print r.json()
         #print ('Kamini:results')
         #print r.json()['results']
         #print ('Kamini:status')
