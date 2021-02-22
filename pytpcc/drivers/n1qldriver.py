@@ -314,7 +314,7 @@ class N1QlDriver(AbstractDriver):
         "denormalize":  ("If set to true, then the CUSTOMER data will be denormalized into a single document", False),
     }
     
-    def __init__(self, ddl):
+    def __init__(self, ddl, clientId):
         global globcon
         super(N1QlDriver, self).__init__("n1ql", ddl)
         self.database = None
@@ -351,6 +351,8 @@ class N1QlDriver(AbstractDriver):
                     r.json()
                     self.prepared_dict[txn + query] = "EXECUTE %s_%s" % (txn, query)
 
+    def txStatus(self):
+        return ""
 
     ## ----------------------------------------------
     ## makeDefaultConfig

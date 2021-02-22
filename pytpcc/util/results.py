@@ -35,6 +35,7 @@ class Results:
         self.txn_id = 0
         
         self.txn_counters = { }
+        self.txn_status = { }
         self.txn_times = { }
         self.running = { }
         
@@ -63,8 +64,15 @@ class Results:
         assert id in self.running
         txn_name, txn_start = self.running[id]
         del self.running[id]
+
+        if txn_name not in self.txn_status :
+             self.txn_status[txn_name] = {}
+
+        status = "aborted"
+        cnt = self.txn_status[txn_name].get(status, 0)
+        self.txn_status[txn_name][status] = cnt + 1
         
-    def stopTransaction(self, id):
+    def stopTransaction(self, id, status):
         """Record that the benchmark completed an invocation of the given transaction"""
         assert id in self.running
         txn_name, txn_start = self.running[id]
@@ -73,10 +81,17 @@ class Results:
         duration = time.time() - txn_start
         total_time = self.txn_times.get(txn_name, 0)
         self.txn_times[txn_name] = total_time + duration
-        
+
         total_cnt = self.txn_counters.get(txn_name, 0)
         self.txn_counters[txn_name] = total_cnt + 1
-        
+
+        if txn_name not in self.txn_status :
+             self.txn_status[txn_name] = {}
+
+        if status != "":
+            cnt = self.txn_status[txn_name].get(status, 0)
+            self.txn_status[txn_name][status] = cnt + 1
+
     def append(self, r):
         for txn_name in r.txn_counters.keys():
             orig_cnt = self.txn_counters.get(txn_name, 0)
@@ -85,6 +100,12 @@ class Results:
             self.txn_counters[txn_name] = orig_cnt + r.txn_counters[txn_name]
             self.txn_times[txn_name] = orig_time + r.txn_times[txn_name]
             #logging.debug("%s [cnt=%d, time=%d]" % (txn_name, self.txn_counters[txn_name], self.txn_times[txn_name]))
+        for txn_name in r.txn_status.keys():
+             if txn_name not in self.txn_status :
+                  self.txn_status[txn_name] = {}
+             for k in r.txn_status[txn_name].keys():
+                 cnt = self.txn_status[txn_name].get(k, 0)
+                 self.txn_status[txn_name][k] = cnt + r.txn_status[txn_name][k]
         ## HACK
         self.start = r.start
         self.stop = r.stop
@@ -120,12 +141,20 @@ class Results:
             rate = u"%.02f txn/s" % ((txn_cnt / duration))
             #avg_latency = u"%.03f sec" % ((txn_cnt / txn_time))
             ret += f % (txn, str(txn_cnt), str(round(txn_time * 1000000,3)), rate)
-            
             total_time += txn_time
             total_cnt += txn_cnt
+            ret += "("
+            i = 0
+            for k in sorted(self.txn_status[txn].keys()):
+                if i != 0 :
+                   ret += ", "
+                i += 1
+                ret += k + ":"+ str(self.txn_status[txn][k])
+            ret += ")"
         ret += "\n" + ("-"*total_width)
         total_rate = "%.02f txn/s" % ((total_cnt / duration))
         ret += f % ("TOTAL", str(total_cnt), str(round(total_time * 1000000,3)), total_rate)
 
+#        return (ret.encode('utf-8'))
         return (ret)
 ## CLASS

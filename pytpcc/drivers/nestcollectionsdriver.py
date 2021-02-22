@@ -38,6 +38,8 @@ from pprint import pprint,pformat
 import json
 import requests
 import time
+import urllib3
+from urllib3.poolmanager import PoolManager
 
 import constants
 from .abstractdriver import *
@@ -273,7 +275,9 @@ TABLE_INDEXES = {
     ],
 }
 
-globconn = 0
+globpool = 0
+gcreds = '[{"user":"Administrator","pass":"password"}]'
+prepared_dict = {}
 
 def TxTimeoutFactor(txtimeout, factor):
     tx = float(txtimeout)
@@ -282,103 +286,93 @@ def TxTimeoutFactor(txtimeout, factor):
     tx = tx * factor
     return str(tx) + "s"
 
+def retvalN1QLQuery(prefix, rj):
+    if 'status' not in rj:
+         return rj, "assert"
+    status = rj['status']
+    if status != "success" :
+        if rj['errors'][0]["code"] == 17010 :
+            status = "timeout"
+        elif ( (rj['errors'][0]["code"] == 17007) and
+             ("cause" in rj['errors'][0]) and
+             ("cause" in rj['errors'][0]['cause']) ) :
+             if  rj['errors'][0]['cause']['cause'] == "found existing document: document already exists" :
+                  status = "duplicates"
+             elif "msg" in rj['errors'][0]['cause']['cause'] and  rj['errors'][0]['cause']['cause']['msg'] == "write write conflict":
+                   status = "wwconflict"  
+             elif ("error_description" in rj['errors'][0]['cause']['cause'])  :
+                  status = rj['errors'][0]['cause']['cause']['error_description']
+                  if status == "key already exists, or CAS mismatch" :
+                      status = "casmismatch"
+
+#        if status != "casmismatch" and status != "timeout" and status != "duplicates" and status != wwconflict" :
+#            print rj
+        if prefix != "" :
+            status = prefix + "-" + status
+    return rj['results'], status
+
+
 ## ----------------------------------------------
 ## runNQuery
 ## ----------------------------------------------
 
-def runNQuery(query, txid, txtimeout, randomhost=None):
-        global globcon
-        QUERY_URL = os.environ["QUERY_URL"]
-        USER_ID = os.environ["USER_ID"]
-        PASSWORD = os.environ["PASSWORD"]
-        durability_level = os.environ["DURABILITY_LEVEL"]
-        scan_consistency = os.environ["SCAN_CONSISTENCY"]
-        if randomhost:
-            QUERY_URL = randomhost
-        stmt = '{"statement" : "' + str(query) + '"'
-        if (len(txid) >  0):
-                stmt = stmt + ', "txid" : "' + txid + '"'
-        if (len(txtimeout) >  0):
-                stmt = stmt + ', "txtimeout" : "' + txtimeout + '"'
-        stmt = stmt + ', "durability_level" : "' + durability_level + '"'
-        stmt = stmt + ', "scan_consistency" : "' + scan_consistency + '"'
-        stmt = stmt + '}'
+def runNQuery(prefix, query, txid, txtimeout, randomhost):
+        stmt = generate_prepared_query(query)
+        stmt['durability_level'] = os.environ["DURABILITY_LEVEL"]
+        stmt['scan_consistency'] = os.environ["SCAN_CONSISTENCY"]
+        if txtimeout != "":
+            stmt['txtimeout'] = txtimeout
+        if txid != "":
+            stmt['txid'] = txid
+        body = n1ql_execute(randomhost, stmt)
+        return retvalN1QLQuery(prefix, body)
 
-        #stmt = stmt + ', "scan_consistency" : "not_bounded"' +  '}'
-        #stmt = stmt + ', "scan_consistency" : "request_plus"' +  '}'
-
-        # print len(param)
-        #print stmt
-        url = "http://{0}/query".format(QUERY_URL)
-        query = json.loads(stmt)
-        #print query
-        r = globcon.post(url, data=query, stream=False)
-        if r.json()['status'] != 'success':
-            logging.debug('Transaction BEGIN/COMMIT Failed | Query : ',query,'| txid :',txid, '| Response', r.json())
-            if ((r.json()['errors'][0]['cause']['msg']) != 'document exists' and (r.json()['errors'][0]['cause']['msg']) != 'write write conflict' and (r.json()['errors'][0]['cause']['class']) != 7):
-                print ('Kamini 1')
-                print (r.json()['errors'])
-
-        #print ('Kamini:results')
-        #print r.json()['results']
-        #print ('Kamini:status')
-        #print r.json()['status']
-        return r.json()['results']
 ## ----------------------------------------------
 ## runNQueryParam
 ## ----------------------------------------------
 
-def runNQueryParam(query, param, txid, randomhost=None):
-        global globcon
-        QUERY_URL = os.environ["QUERY_URL"]
-        USER_ID = os.environ["USER_ID"]
-        PASSWORD = os.environ["PASSWORD"]
-        if randomhost:
-            QUERY_URL = randomhost
-        stmt = '{"statement" : "' + str(query) + '"'
-        # print len(param)
-        if (len(param) >  0):
-                stmt = stmt + ', "args" : "['
-        else:
-                stmt = stmt + '}'
-        i=0
-        myarg = ""
-        for p in param:
-                if isinstance(p, (bool)):
-                        myarg = myarg + str.lower(str(p))
-                elif isinstance(p,(int, float)) and not isinstance(p, (bool)):
-                        myarg = myarg + str(p)
-                else:
-                        myarg = myarg + '\\"' + str(p) + '\\"'
-                i = i + 1
-                if i < len(param):
-                        myarg = myarg + ","
-        stmt = stmt + myarg
-        stmt = stmt + ']"'
-        if (len(txid) >  0):
-                stmt = stmt + ', "txid" : "' + txid + '"}'
-        else:
-                stmt = stmt + '}'
-        
-        #print ('Kamini:stmt')
-        #print stmt
-        url = "http://{0}/query".format(QUERY_URL)
-        #print ('Kamini:query')
-        query = json.loads(stmt)
-        #print query
-        r = globcon.post(url, data=query, stream=False)
-        if r.json()['status'] != 'success':
-            logging.debug('Query Failed | Query : ', query, '| txid :', txid, '| Response', r.json())
-            print ('Kamini #2')
-            print (query)
-            print (r.json())
-        #print ('Kamini:results')
-        #print r.json()['results']
-        #print ('Kamini:status')
-        #print r.json()['status']
-        #print ('Kamini:metrics')
-        #print r.json()['metrics']
-        return r.json()['results'],r.json()['status']
+def runNQueryParam(query, param, txid, randomhost):
+        stmt = generate_prepared_query(query)
+        if txid != "":
+            stmt['txid'] = txid
+
+        if (len(param) > 0):
+             qparam = []
+             for p in param:
+                 if isinstance(p, (bool)):
+                     qparam.append(p)
+                 elif isinstance(p,(int, float)) and not isinstance(p, (bool)):
+                     qparam.append(p)
+                 else:
+                     qparam.append(str(p))
+             stmt['args'] = json.JSONEncoder().encode(qparam)
+
+        body = n1ql_execute(randomhost, stmt)
+        return retvalN1QLQuery("", body)
+
+def generate_prepared_query (name):
+    return {'prepared': '"' + name + '"'}
+
+def n1ql_execute(query_node, stmt):
+    global gcred
+    global globpool
+
+    stmt['creds'] = gcreds
+    url = "http://{0}/query/service".format(query_node)
+    conn_pool = globpool.connection_from_url(url, pool_kwargs = {"retries":100, "maxsize":60})
+    for i in range(2):
+        try:
+            response = conn_pool.request('POST', '/query/service', fields=stmt, encode_multipart=False)
+            if response.status == requests.codes.ok :
+                response.read(cache_content=False)
+                body = json.loads(response.data.decode('utf8'))
+#                if body['status'] != "success":
+#                    logging.info("%s --- %s" % (stmt, json.JSONEncoder().encode(body)))
+                return body
+        except:
+            if i != 0 :
+               break
+    return {}
 
 ## ==============================================
 ## NestcollectionsDriver
@@ -391,60 +385,44 @@ class NestcollectionsDriver(AbstractDriver):
         "denormalize":  ("If set to true, then the CUSTOMER data will be denormalized into a single document", False),
     }
     
-    def __init__(self, ddl):
-        global globcon
+    def __init__(self, ddl, clientId):
+        global globpool
+        global prepared_dict
         super(NestcollectionsDriver, self).__init__("nestcollections", ddl)
+        QUERY_URL = os.environ["QUERY_URL"]
+        self.MULTI_QUERY_LIST = os.environ["MULTI_QUERY_URL"].split(',')
+        self.query_node = QUERY_URL
+        self.client_id = clientId
+        if len(self.MULTI_QUERY_LIST) > 1 and clientId >= 0:
+            self.query_node = self.MULTI_QUERY_LIST[self.client_id%len(self.MULTI_QUERY_LIST)]
+
         self.database = None
-        s = self.conn = requests.Session()
-        s.keep_alive = True
-        globcon = s
         self.cursor = None
-        self.multiple_host = False
+        self.tx_status = ""
         self.txtimeout = TxTimeoutFactor(os.environ["TXTIMEOUT"], 1)
         self.delivery_txtimeout = TxTimeoutFactor(os.environ["TXTIMEOUT"], 1)
         self.stock_txtimeout = TxTimeoutFactor(os.environ["TXTIMEOUT"], 40)
 
-        QUERY_URL = os.environ["QUERY_URL"]
-        USER_ID = os.environ["USER_ID"]
-        PASSWORD = os.environ["PASSWORD"]
+        if clientId >= 0:
+            self.prepared_dict = prepared_dict
+            return
 
-        try:
-            self.MUlTI_QUERY_LIST = os.environ["MULTI_QUERY_URL"].split(',')
-            #print('printing MUlTI_QUERY_URL', MUlTI_QUERY_URL)
-            #random_num = randint(0, len(MUlTI_QUERY_URL) - 1)
-            #print('printing random number ', random_num)
-            #self.RANDOM_QUERY_URL = MUlTI_QUERY_URL[random_num]
-            #print('printing RANDOM_QUERY_URL within init method', self.RANDOM_QUERY_URL)
-        except ex:
-            print("parsing multi url Failed MUlTI_QUERY_URL=", os.environ["MULTI_QUERY_URL"])
-            pass
-        if len(self.MUlTI_QUERY_LIST) > 1:
-            print ('Running on Multiple Query Node')
-            self.multiple_host = True
-
-
-        s.auth = (USER_ID, PASSWORD)
-
-        url = "http://{0}/query/service".format(QUERY_URL)
-        self.prepared_dict = {}
+        gcreds = '[{"user":"' + os.environ["USER_ID"] + '","pass":"' + os.environ["PASSWORD"] + '"}]'
+        globpool = PoolManager(10)
         for txn in TXN_QUERIES:
             for query in TXN_QUERIES[txn]:
                 if query == "getStockInfo":
                     for i in range(1,11):
                         converted_district = TXN_QUERIES[txn][query] % i
                         prepare_query = "PREPARE %s_%s_%s " % (txn, i, query) + "FROM %s" % converted_district
-                        stmt = '{"statement" : "' + str(prepare_query) + '"}'
-                        curl_query = json.loads(stmt)
-                        r = globcon.post(url, data=curl_query, stream=False)
-                        r.json()
-                        self.prepared_dict[txn + str(i) + query] = "EXECUTE %s_%s_%s" % (txn, i, query)
+                        stmt = json.loads('{"statement" : "' + str(prepare_query) + '"}')
+                        n1ql_execute(self.query_node, stmt)
+                        prepared_dict[txn + str(i) + query] = "%s_%s_%s" % (txn, i, query)
                 else:
                     prepare_query = "PREPARE %s_%s " % (txn, query) + "FROM %s" % TXN_QUERIES[txn][query]
-                    stmt = '{"statement" : "' + str(prepare_query) + '"}'
-                    curl_query = json.loads(stmt)
-                    r = globcon.post(url, data=curl_query, stream=False)
-                    r.json()
-                    self.prepared_dict[txn + query] = "EXECUTE %s_%s" % (txn, query)
+                    stmt = json.loads('{"statement" : "' + str(prepare_query) + '"}')
+                    n1ql_execute(self.query_node, stmt)
+                    prepared_dict[txn + query] = "%s_%s" % (txn, query)
 
 
     ## ----------------------------------------------
@@ -464,13 +442,14 @@ class NestcollectionsDriver(AbstractDriver):
         self.denormalize = config['denormalize']
         if self.denormalize: logging.debug("Using denormalized data model")
         return
-    
+
+    def txStatus(self):
+        return self.tx_status
 
     ## ----------------------------------------------
     ## loadTuples for Couchbase (Adapted from MongoDB implemenetation. Only normalized version is ported to Couchbase).
     ## ----------------------------------------------
     def loadTuples(self, tableName, tuples):
-        global globcon
         if len(tuples) == 0: return
         logging.debug("Loading %d tuples for tableName %s" % (len(tuples), tableName))
         
@@ -479,16 +458,7 @@ class NestcollectionsDriver(AbstractDriver):
         num_columns = range(len(columns))
         
         tuple_dicts = [ ]
-        try:
-            QUERY_URL = os.environ["QUERY_URL"]
-            if self.multiple_host:
-                QUERY_URL = random.choice(self.MUlTI_QUERY_LIST)
-            USER_ID = os.environ["USER_ID"]
-            PASSWORD = os.environ["PASSWORD"]
-        except Exception as ex:
-            print (ex)
 
-        url = "http://{0}/query".format(QUERY_URL)   # Update this for your installation.
         ## We want to combine all of a CUSTOMER's ORDERS, ORDER_LINE, and HISTORY records
         ## into a single document
         if self.denormalize and tableName in MongodbDriver.DENORMALIZED_TABLES:
@@ -542,16 +512,9 @@ class NestcollectionsDriver(AbstractDriver):
         ## Otherwise just shove the tuples straight to the target collection
         else:
             i = 0
-            # print tuples
             sql = 'INSERT INTO %s(KEY, VALUE) ' % tableName
             for t in tuples:
-                # print tableName
-                # print KEYNAMES[tableName]
-                # print columns
-                # print t
                 key = ""
-                # print KEYNAMES[tableName]
-                # Normalizing kpart with array indexing.
                 kpart = len(KEYNAMES[tableName]) - 1
                 l = 0
                 for k in KEYNAMES[tableName]:
@@ -559,7 +522,7 @@ class NestcollectionsDriver(AbstractDriver):
                                 key = key + str(t[k]) + '.'
                         else:
                                 key = key + str(t[k])
-                        l = l + 1;
+                        l = l + 1
                 #sql = 'INSERT INTO %s(KEY, VALUE) VALUES (\\"%s\\", {' % (tableName, key)
                 if i != 0:
                     sql = sql + ',VALUES (\\"%s\\", {' % key
@@ -578,27 +541,16 @@ class NestcollectionsDriver(AbstractDriver):
                     sql = sql + "})"
                     nsql = '{"statement": "' + sql + '"}'
                     jsql = json.loads(nsql)
-                    # r = globcon.post(url, data=jsql, stream=False, headers={'Connection':'close'})
-                    r = globcon.post(url, data=jsql, stream=False)
-                    # r = requests.post(url, data=jsql, auth=('Administrator', 'password'))
-                    # print tableName, r, i, len(nsql)
-                    # print r.json()
+                    n1ql_execute(self.query_node, jsql)
                     sql = 'INSERT INTO %s(KEY, VALUE) ' % tableName
                     i = 0
                 else:
                     sql = sql + "})"
                     i = i + 1
-            # print nsql
             nsql = '{"statement": "' + sql + '"}'
             jsql = json.loads(nsql)
-            # print nsql
-        r = globcon.post(url, data=jsql, stream=False, headers={'Connection':'close'})
-            # r = requests.post(url, data=jsql, auth=('Administrator', 'password'))
-            # r = globcon.post(url, data=jsql, stream=False)
-            # print tableName, r, i, len(nsql)
-            # print r.json()
+        n1ql_execute(self.query_node, jsql)
 
-        ## IF
         logging.debug("LoadTuples:%s: %s" %  (tableName, nsql))
         
         return
@@ -608,7 +560,7 @@ class NestcollectionsDriver(AbstractDriver):
     ## loadFinish
     ## ----------------------------------------------
     def loadFinish(self):
-        logging.info("Finished loading tables")
+        logging.info("Client ID # %d Finished loading tables" % (self.client_id))
         if logging.getLogger().isEnabledFor(logging.DEBUG):
             for name in constants.ALL_TABLES:
                 if self.denormalize and name in MongodbDriver.DENORMALIZED_TABLES[1:]: return
@@ -624,10 +576,8 @@ class NestcollectionsDriver(AbstractDriver):
     ## ----------------------------------------------
     def doDelivery(self, params):
 
-        if self.multiple_host:
-            randomhost = random.choice(self.MUlTI_QUERY_LIST)
-        else:
-            randomhost = os.environ["QUERY_URL"]
+        self.tx_status = ""
+        randomhost = self.query_node
 
         # print "Entering doDelivery"
         txn = "DELIVERY"
@@ -638,40 +588,42 @@ class NestcollectionsDriver(AbstractDriver):
 
         result = [ ]
         for d_id in range(1, constants.DISTRICTS_PER_WAREHOUSE+1):
-            rs = runNQuery(self.prepared_dict[ txn + "beginWork"],"",self.delivery_txtimeout, randomhost=randomhost);
+            rs, status = runNQuery("begin", self.prepared_dict[ txn + "beginWork"],"",self.delivery_txtimeout, randomhost)
             txid = rs[0]['txid']
-            newOrder,status = runNQueryParam(self.prepared_dict[ txn + "getNewOrder"], [d_id, w_id], txid, randomhost=randomhost)
+            newOrder, status = runNQueryParam(self.prepared_dict[ txn + "getNewOrder"], [d_id, w_id], txid, randomhost)
             if len(newOrder) == 0:
+                trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
+                self.tx_status = "assert"
+                return
+                assert len(newOrder) > 0
                 ## No orders for this district: skip it. Note: This must be reported if > 1%
                 return
-            assert len(newOrder) > 0
             no_o_id = newOrder[0]['NO_O_ID']
             
-            rs,status = runNQueryParam(self.prepared_dict[ txn + "getCId"], [no_o_id, d_id, w_id],txid, randomhost=randomhost)
-
-            if (status == 'errors'):
-                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost)
+            rs, status = runNQueryParam(self.prepared_dict[ txn + "getCId"], [no_o_id, d_id, w_id],txid, randomhost)
+            if (status != "success"):
+                     trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
                      continue
 
             c_id = rs[0]['O_C_ID']
             
-            rs2,status = runNQueryParam(self.prepared_dict[ txn + "sumOLAmount"], [no_o_id, d_id, w_id], txid, randomhost=randomhost)
+            rs2,status = runNQueryParam(self.prepared_dict[ txn + "sumOLAmount"], [no_o_id, d_id, w_id], txid, randomhost)
 
-            if (status == 'errors'):
-                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost)
+            if (status != "success"):
+                     trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
                      continue
             ol_total = rs2[0]['SUM_OL_AMOUNT']
 
-            result,status = runNQueryParam(self.prepared_dict[ txn + "deleteNewOrder"], [d_id, w_id, no_o_id], txid, randomhost=randomhost)
+            result,status = runNQueryParam(self.prepared_dict[ txn + "deleteNewOrder"], [d_id, w_id, no_o_id], txid, randomhost)
             
-            result,status = runNQueryParam(self.prepared_dict[ txn + "updateOrders"], [o_carrier_id, no_o_id, d_id, w_id], txid, randomhost=randomhost)
-            if (status == 'errors'):
-                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost)
+            result,status = runNQueryParam(self.prepared_dict[ txn + "updateOrders"], [o_carrier_id, no_o_id, d_id, w_id], txid, randomhost)
+            if (status != "success"):
+                     trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
                      continue
 
-            result,status = runNQueryParam(self.prepared_dict[ txn + "updateOrderLine"], [ol_delivery_d, no_o_id, d_id, w_id], txid, randomhost=randomhost)
-            if (status == 'errors'):
-                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost)
+            result,status = runNQueryParam(self.prepared_dict[ txn + "updateOrderLine"], [ol_delivery_d, no_o_id, d_id, w_id], txid, randomhost)
+            if (status != "success"):
+                     trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
                      continue
 
 
@@ -683,16 +635,15 @@ class NestcollectionsDriver(AbstractDriver):
             # assert ol_total != None, "ol_total is NULL: there are no order lines. This should not happen"
             # assert ol_total > 0.0
 
-            result,status = runNQueryParam(self.prepared_dict[ txn + "updateCustomer"], [ol_total, c_id, d_id, w_id], txid, randomhost=randomhost)
-            if (status == 'errors'):
-                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost)
+            result,status = runNQueryParam(self.prepared_dict[ txn + "updateCustomer"], [ol_total, c_id, d_id, w_id], txid, randomhost)
+            if (status != "success"):
+                     trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
                      continue
 
             result.append((d_id, no_o_id))
         ## FOR
 
-        runNQuery(self.prepared_dict[ txn + "commitWork"],txid,"",randomhost=randomhost);
-
+        trs, self.tx_status = runNQuery("commit", self.prepared_dict[ txn + "commitWork"],txid,"",randomhost)
         return result
 
     ## ----------------------------------------------
@@ -700,10 +651,8 @@ class NestcollectionsDriver(AbstractDriver):
     ## ----------------------------------------------
     def doNewOrder(self, params):
 
-        if self.multiple_host:
-            randomhost = random.choice(self.MUlTI_QUERY_LIST)
-        else:
-            randomhost = os.environ["QUERY_URL"]
+        self.tx_status = ""
+        randomhost = self.query_node
 
         # print "Entering doNewOrder"
         txn = "NEW_ORDER"
@@ -712,8 +661,6 @@ class NestcollectionsDriver(AbstractDriver):
         w_id = params["w_id"]
         d_id = params["d_id"]
         c_id = params["c_id"]
-        # print '#NewOrder'
-        # print w_id, d_id, c_id
 
         o_entry_d = params["o_entry_d"]
         i_ids = params["i_ids"]
@@ -726,17 +673,19 @@ class NestcollectionsDriver(AbstractDriver):
 
         all_local = True
         items = [ ]
-        rs = runNQuery(self.prepared_dict[ txn + "beginWork"],"",self.txtimeout, randomhost=randomhost);
+        rs, tstatus  = runNQuery("begin", self.prepared_dict[ txn + "beginWork"],"",self.txtimeout, randomhost)
         txid = rs[0]['txid']
-        #print ('Kamini:txid')
         #print txid
         for i in range(len(i_ids)):
             ## Determine if this is an all local order or not
             all_local = all_local and i_w_ids[i] == w_id
-            rs, status = runNQueryParam(self.prepared_dict[ txn + "getItemInfo"], [i_ids[i]], txid, randomhost=randomhost)
-            #keshav added.  Needed? assert len(rs) > 0
+            rs, status = runNQueryParam(self.prepared_dict[ txn + "getItemInfo"], [i_ids[i]], txid, randomhost)
+            if len(rs) == 0:
+                trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
+                self.tx_status = "assert"
+                return
+                assert len(rs) > 0
             items.append(rs[0])
-        assert len(items) == len(i_ids)
         
 
         ## TPCC defines 1% of neworder gives a wrong itemid, causing rollback.
@@ -744,30 +693,27 @@ class NestcollectionsDriver(AbstractDriver):
         for item in items:
             if len(item) == 0:
                 ## TODO Abort here!
-                # print "//aborted"
-                runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost);
-                #print "ROLLBACK 5";
-                return;
+                trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
+                return
         ## FOR
         
         ## ----------------
         ## Collect Information from WAREHOUSE, DISTRICT, and CUSTOMER
         ## ----------------
-        # print w_id
-        rs, status = runNQueryParam(self.prepared_dict[ txn + "getWarehouseTaxRate"], [w_id], txid, randomhost=randomhost)
+        rs, status = runNQueryParam(self.prepared_dict[ txn + "getWarehouseTaxRate"], [w_id], txid, randomhost)
         customer_info = rs
-        if (status == 'errors'):
-                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost)
-                     return
+        if (status != "success"):
+             trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
+             return
         if len(rs) > 0:
             w_tax = rs[0]['W_TAX']
         
-        district_info, status = runNQueryParam(self.prepared_dict[ txn +"getDistrict"], [d_id, w_id], txid, randomhost=randomhost)
+        district_info, status = runNQueryParam(self.prepared_dict[ txn +"getDistrict"], [d_id, w_id], txid, randomhost)
         if len(district_info) != 0:
             d_tax = district_info[0]['D_TAX']
             d_next_o_id = district_info[0]['D_NEXT_O_ID']
         
-        rs, status = runNQueryParam(self.prepared_dict[ txn + "getCustomer"], [w_id, d_id, c_id], txid, randomhost=randomhost)
+        rs, status = runNQueryParam(self.prepared_dict[ txn + "getCustomer"], [w_id, d_id, c_id], txid, randomhost)
         if len(rs) != 0:
             c_discount = rs[0]['C_DISCOUNT']
 
@@ -777,20 +723,20 @@ class NestcollectionsDriver(AbstractDriver):
         ol_cnt = len(i_ids)
         o_carrier_id = constants.NULL_CARRIER_ID
         
-        rs, status = runNQueryParam(self.prepared_dict[ txn + "incrementNextOrderId"], [d_next_o_id + 1, d_id, w_id], txid, randomhost=randomhost)
-        if (status == 'errors'):
-                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost)
-                     return
+        rs, status = runNQueryParam(self.prepared_dict[ txn + "incrementNextOrderId"], [d_next_o_id + 1, d_id, w_id], txid, randomhost)
+        if (status != "success"):
+             trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
+             return
         
-        rs, status = runNQueryParam(self.prepared_dict[ txn + "createOrder"], [d_next_o_id, d_id, w_id, c_id, o_entry_d, o_carrier_id, ol_cnt, all_local], txid, randomhost=randomhost)
-        if (status == 'errors'):
-                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost)
-                     return
+        rs, status = runNQueryParam(self.prepared_dict[ txn + "createOrder"], [d_next_o_id, d_id, w_id, c_id, o_entry_d, o_carrier_id, ol_cnt, all_local], txid, randomhost)
+        if (status != "success"):
+             trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
+             return
         
-        rs,status = runNQueryParam(self.prepared_dict[ txn + "createNewOrder"], [d_next_o_id, d_id, w_id], txid, randomhost=randomhost)
-        if (status == 'errors'):
-                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost)
-                     return
+        rs,status = runNQueryParam(self.prepared_dict[ txn + "createNewOrder"], [d_next_o_id, d_id, w_id], txid, randomhost)
+        if (status != "success"):
+             trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
+             return
         
         #print "NewOrder Stage #1"
 
@@ -799,10 +745,8 @@ class NestcollectionsDriver(AbstractDriver):
         ## ----------------
         item_data = [ ]
         total = 0
-        # print  len(i_ids);
+        # print  len(i_ids)
         for i in range(len(i_ids)):
-            # print "NewOrder Stage #2"
-            # print "i == " + str(i)
             ol_number = i + 1
             ol_supply_w_id = i_w_ids[i]
             ol_i_id = i_ids[i]
@@ -815,7 +759,7 @@ class NestcollectionsDriver(AbstractDriver):
             i_price = itemInfo["I_PRICE"]
 
             # print "NewOrder Stage #3"
-            stockInfo, status = runNQueryParam(self.prepared_dict[ txn + str(d_id) + "getStockInfo"], [ol_i_id, ol_supply_w_id], txid, randomhost=randomhost)
+            stockInfo, status = runNQueryParam(self.prepared_dict[ txn + str(d_id) + "getStockInfo"], [ol_i_id, ol_supply_w_id], txid, randomhost)
             if len(stockInfo) == 0:
                 logging.warn("No STOCK record for (ol_i_id=%d, ol_supply_w_id=%d)" % (ol_i_id, ol_supply_w_id))
                 return
@@ -827,7 +771,7 @@ class NestcollectionsDriver(AbstractDriver):
             s_order_cnt = stockInfo[0]["S_ORDER_CNT"]
             s_remote_cnt = stockInfo[0]["S_REMOTE_CNT"]
             s_data = stockInfo[0]["S_DATA"]
-            distxx = "S_DIST_" + str(d_id).zfill(2);
+            distxx = "S_DIST_" + str(d_id).zfill(2)
             # print "NewOrder Stage #4.01"
             # print distxx
             # print stockInfo[0][distxx]
@@ -845,10 +789,10 @@ class NestcollectionsDriver(AbstractDriver):
             if ol_supply_w_id != w_id: s_remote_cnt += 1
 
             # print "NewOrder Stage #5"
-            rs, status = runNQueryParam(self.prepared_dict[ txn + "updateStock"], [s_quantity, s_ytd, s_order_cnt, s_remote_cnt, ol_i_id, ol_supply_w_id], txid, randomhost=randomhost)
-            if (status == 'errors'):
-                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost)
-                     return
+            rs, status = runNQueryParam(self.prepared_dict[ txn + "updateStock"], [s_quantity, s_ytd, s_order_cnt, s_remote_cnt, ol_i_id, ol_supply_w_id], txid, randomhost)
+            if (status != "success"):
+                 trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
+                 return
 
             if i_data.find(constants.ORIGINAL_STRING) != -1 and s_data.find(constants.ORIGINAL_STRING) != -1:
                 brand_generic = 'B'
@@ -859,13 +803,13 @@ class NestcollectionsDriver(AbstractDriver):
             ol_amount = ol_quantity * i_price
             total += ol_amount
 
-            rs, status = runNQueryParam(self.prepared_dict[ txn + "createOrderLine"], [d_next_o_id, d_id, w_id, ol_number, ol_i_id, ol_supply_w_id, o_entry_d, ol_quantity, ol_amount, s_dist_xx], txid, randomhost=randomhost)
+            rs, status = runNQueryParam(self.prepared_dict[ txn + "createOrderLine"], [d_next_o_id, d_id, w_id, ol_number, ol_i_id, ol_supply_w_id, o_entry_d, ol_quantity, ol_amount, s_dist_xx], txid, randomhost)
             
 
             ## Add the info to be returned
             item_data.append( (i_name, s_quantity, brand_generic, i_price, ol_amount) )
         ## FOR
-        runNQuery(self.prepared_dict[ txn + "commitWork"], txid, "",randomhost=randomhost);
+        trs, self.tx_status = runNQuery("commit", self.prepared_dict[ txn + "commitWork"], txid, "",randomhost)
         ## Commit!
         # keshav: self.conn.commit()
 
@@ -886,10 +830,8 @@ class NestcollectionsDriver(AbstractDriver):
     ## ----------------------------------------------
     def doOrderStatus(self, params):
 
-        if self.multiple_host:
-            randomhost = random.choice(self.MUlTI_QUERY_LIST)
-        else:
-            randomhost = os.environ["QUERY_URL"]
+        self.tx_status = ""
+        randomhost = self.query_node
 
         # print "Entering doOrderStatus"
         txn = "ORDER_STATUS"
@@ -902,28 +844,41 @@ class NestcollectionsDriver(AbstractDriver):
         assert w_id, pformat(params)
         assert d_id, pformat(params)
 
-        rs = runNQuery(self.prepared_dict[ txn + "beginWork"],"",self.txtimeout, randomhost=randomhost);
+        rs, tstatus = runNQuery("begin", self.prepared_dict[ txn + "beginWork"],"",self.txtimeout, randomhost)
         txid = rs[0]['txid']
         if c_id != None:
-            customerlist,status = runNQueryParam(self.prepared_dict[ txn + "getCustomerByCustomerId"], [w_id, d_id, c_id], txid, randomhost=randomhost)
+            customerlist,status = runNQueryParam(self.prepared_dict[ txn + "getCustomerByCustomerId"], [w_id, d_id, c_id], txid, randomhost)
+            if len(customerlist) == 0 :
+                 trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
+                 self.tx_status = "assert"
+                 return
+                 assert len(customerlist) > 0
             customer = customerlist[0]
         else:
             # Get the midpoint customer's id
-            all_customers,status = runNQueryParam(self.prepared_dict[ txn + "getCustomersByLastName"], [w_id, d_id, c_last], txid, randomhost=randomhost)
-            assert len(all_customers) > 0
+            all_customers,status = runNQueryParam(self.prepared_dict[ txn + "getCustomersByLastName"], [w_id, d_id, c_last], txid, randomhost)
+            if len(all_customers) == 0 :
+                 trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
+                 self.tx_status = "assert"
+                 return
+                 assert len(all_customers) > 0
             namecnt = len(all_customers)
             index = int((namecnt-1)/2)
             customer = all_customers[index]
             c_id = customer['C_ID']
-        assert len(customer) > 0
-        assert c_id != None
 
-        order,status = runNQueryParam(self.prepared_dict[ txn + "getLastOrder"], [w_id, d_id, c_id], txid, randomhost=randomhost)
+        if len(customer) == 0 or c_id == None :
+            trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
+            self.tx_status = "assert"
+            return
+            assert (len(customer) > 0 or c_id != None)
+
+        order,status = runNQueryParam(self.prepared_dict[ txn + "getLastOrder"], [w_id, d_id, c_id], txid, randomhost)
         if len(order) > 0:
-            orderLines,status = runNQueryParam(self.prepared_dict[ txn + "getOrderLines"], [w_id, d_id, order[0]['O_ID']], txid, randomhost=randomhost)
+            orderLines,status = runNQueryParam(self.prepared_dict[ txn + "getOrderLines"], [w_id, d_id, order[0]['O_ID']], txid, randomhost)
         else:
             orderLines = [ ]
-        runNQuery(self.prepared_dict[ txn + "commitWork"], txid, "",randomhost=randomhost);
+        trs, self.tx_status = runNQuery("commit", self.prepared_dict[ txn + "commitWork"], txid, "",randomhost)
 
         #Keshav: self.conn.commit()
         return [ customer, order, orderLines ]
@@ -934,10 +889,8 @@ class NestcollectionsDriver(AbstractDriver):
     def doPayment(self, params):
         # print "Entering doPayment"
 
-        if self.multiple_host:
-            randomhost = random.choice(self.MUlTI_QUERY_LIST)
-        else:
-            randomhost = os.environ["QUERY_URL"]
+        self.tx_status = ""
+        randomhost = self.query_node
 
         txn = "PAYMENT"
         q = TXN_QUERIES[txn]
@@ -950,22 +903,38 @@ class NestcollectionsDriver(AbstractDriver):
         c_last = params["c_last"]
         h_date = params["h_date"]
 
-        rs = runNQuery(self.prepared_dict[ txn + "beginWork"],"",self.txtimeout, randomhost=randomhost);
+        rs, tstatus = runNQuery("begin", self.prepared_dict[ txn + "beginWork"],"",self.txtimeout, randomhost)
         txid = rs[0]['txid']
 
         if c_id != None:
-            customerlist,status = runNQueryParam(self.prepared_dict[ txn + "getCustomerByCustomerId"], [w_id, d_id, c_id], txid, randomhost=randomhost)
+            customerlist,status = runNQueryParam(self.prepared_dict[ txn + "getCustomerByCustomerId"], [w_id, d_id, c_id], txid, randomhost)
+            if len(customerlist) == 0 :
+                 trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
+                 self.tx_status = "assert"
+                 return
+                 assert len(customerlist) > 0
+
             customer = customerlist[0]
         else:
             # Get the midpoint customer's id
-            all_customers,status = runNQueryParam(self.prepared_dict[ txn + "getCustomersByLastName"], [w_id, d_id, c_last], txid, randomhost=randomhost)
+            all_customers,status = runNQueryParam(self.prepared_dict[ txn + "getCustomersByLastName"], [w_id, d_id, c_last], txid, randomhost)
+            if len(all_customers) == 0 :
+                 trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
+                 self.tx_status = "assert"
+                 return
+                 assert len(all_customers) > 0
 
-            assert len(all_customers) > 0
             namecnt = len(all_customers)
             index = int((namecnt-1)/2)
             customer = all_customers[index]
             c_id = customer['C_ID']
-        assert len(customer) > 0
+
+        if len(customer) == 0 or c_id == None :
+            trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
+            self.tx_status = "assert"
+            return
+            assert (len(customer) > 0 or c_id != None)
+
         c_balance = customer['C_BALANCE'] - h_amount
         c_ytd_payment = customer['C_YTD_PAYMENT'] + h_amount
         c_payment_cnt = customer['C_PAYMENT_CNT'] + 1
@@ -973,26 +942,25 @@ class NestcollectionsDriver(AbstractDriver):
 
         #print "doPayment: Stage 2"
 
-        warehouse,status = runNQueryParam(self.prepared_dict[ txn + "getWarehouse"], [w_id], txid, randomhost=randomhost)
-        if (status == 'errors'):
-                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost);
-                     return
+        warehouse,status = runNQueryParam(self.prepared_dict[ txn + "getWarehouse"], [w_id], txid, randomhost)
+        if (status != "success"):
+             trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
+             return
 
-        district,status = runNQueryParam(self.prepared_dict[ txn + "getDistrict"], [w_id, d_id], txid, randomhost=randomhost)
-        if (status == 'errors'):
-                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost);
-                     return
+        district,status = runNQueryParam(self.prepared_dict[ txn + "getDistrict"], [w_id, d_id], txid, randomhost)
+        if (status != "success"):
+             trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
+             return
 
-        rs, status = runNQueryParam(self.prepared_dict[ txn + "updateWarehouseBalance"], [h_amount, w_id], txid, randomhost=randomhost)
-        if (status == 'errors'):
-                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost);
-                     return
+        rs, status = runNQueryParam(self.prepared_dict[ txn + "updateWarehouseBalance"], [h_amount, w_id], txid, randomhost)
+        if (status != "success"):
+             trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
+             return
         
-        rs, status = runNQueryParam(self.prepared_dict[ txn + "updateDistrictBalance"], [h_amount, w_id, d_id], txid, randomhost=randomhost)
-        if (status == 'errors'):
-                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost);
-                     return
-
+        rs, status = runNQueryParam(self.prepared_dict[ txn + "updateDistrictBalance"], [h_amount, w_id, d_id], txid, randomhost)
+        if (status != "success"):
+             trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
+             return
         
         #print "doPayment: Stage3"
 
@@ -1001,17 +969,16 @@ class NestcollectionsDriver(AbstractDriver):
             newData = " ".join(map(str, [c_id, c_d_id, c_w_id, d_id, w_id, h_amount]))
             c_data = (newData + "|" + c_data)
             if len(c_data) > constants.MAX_C_DATA: c_data = c_data[:constants.MAX_C_DATA]
-            rs, status = runNQueryParam(self.prepared_dict[ txn + "updateBCCustomer"], [c_balance, c_ytd_payment, c_payment_cnt, c_data, c_w_id, c_d_id, c_id], txid, randomhost=randomhost)
-            if (status == 'errors'):
-                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost);
-                     return
-            
+            rs, status = runNQueryParam(self.prepared_dict[ txn + "updateBCCustomer"], [c_balance, c_ytd_payment, c_payment_cnt, c_data, c_w_id, c_d_id, c_id], txid, randomhost)
+            if (status != "success"):
+                 trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
+                 return
         else:
             c_data = ""
-            rs, status = runNQueryParam(self.prepared_dict[ txn + "updateGCCustomer"], [c_balance, c_ytd_payment, c_payment_cnt, c_w_id, c_d_id, c_id], txid, randomhost=randomhost)
-            if (status == 'errors'):
-                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost);
-                     return
+            rs, status = runNQueryParam(self.prepared_dict[ txn + "updateGCCustomer"], [c_balance, c_ytd_payment, c_payment_cnt, c_w_id, c_d_id, c_id], txid, randomhost)
+            if (status != "success"):
+                 trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
+                 return
             
         #print "doPayment: Stage4"
         # Concatenate w_name, four spaces, d_name
@@ -1019,13 +986,12 @@ class NestcollectionsDriver(AbstractDriver):
         # print "district %s" % (str(district))
         h_data = "%s    %s" % (warehouse[0]['W_NAME'], district[0]['D_NAME'])
         # Create the history record
-        rs, status = runNQueryParam(self.prepared_dict[ txn + "insertHistory"], [c_id, c_d_id, c_w_id, d_id, w_id, h_date, h_amount, h_data], txid, randomhost=randomhost)
-        if (status == 'errors'):
-                     runNQuery(self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost=randomhost);
-                     return
+        rs, status = runNQueryParam(self.prepared_dict[ txn + "insertHistory"], [c_id, c_d_id, c_w_id, d_id, w_id, h_date, h_amount, h_data], txid, randomhost)
+        if (status != "success"):
+                 trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
+                 return
         
-
-        runNQuery(self.prepared_dict[ txn + "commitWork"], txid,"",randomhost=randomhost);
+        trs, self.tx_status = runNQuery("commit", self.prepared_dict[ txn + "commitWork"], txid,"",randomhost)
         #Keshav: self.conn.commit()
 
         # TPC-C 2.5.3.3: Must display the following fields:
@@ -1044,10 +1010,8 @@ class NestcollectionsDriver(AbstractDriver):
     ## ----------------------------------------------
     def doStockLevel(self, params):
 
-        if self.multiple_host:
-            randomhost = random.choice(self.MUlTI_QUERY_LIST)
-        else:
-            randomhost = os.environ["QUERY_URL"]
+        self.tx_status = ""
+        randomhost = self.query_node
 
         # print "Entering doStockLevel"
         txn = "STOCK_LEVEL"
@@ -1057,20 +1021,20 @@ class NestcollectionsDriver(AbstractDriver):
         d_id = params["d_id"]
         threshold = params["threshold"]
 
-        #rs = runNQuery("BEGIN WORK","",self.stock_txtimeout, randomhost=randomhost);
+        #rs = runNQuery("BEGIN WORK","",self.stock_txtimeout, randomhost)
         #txid = rs[0]['txid']
-        result, status = runNQueryParam(self.prepared_dict[ txn + "getOId"], [w_id, d_id],"", randomhost=randomhost)
+        result, self.tx_status = runNQueryParam(self.prepared_dict[ txn + "getOId"], [w_id, d_id],"", randomhost)
         assert result
         o_id = result[0]['D_NEXT_O_ID']
 
-        result, status = runNQueryParam(self.prepared_dict[ txn + "getStockCount"], [w_id, d_id, o_id, (o_id - 20), w_id, threshold], "", randomhost=randomhost)
+        result, self.tx_status = runNQueryParam(self.prepared_dict[ txn + "getStockCount"], [w_id, d_id, o_id, (o_id - 20), w_id, threshold], "", randomhost)
 
         #self.conn.commit()
-        #rs, status = runNQueryParam(self.prepared_dict[ txn + "getCustomerOrdersByDistrict"], [d_id], "", randomhost=randomhost)
-        #rs, status = runNQueryParam(self.prepared_dict[ txn + "getOrdersByDistrict"], [d_id], "", randomhost=randomhost)
+        #rs, status = runNQueryParam(self.prepared_dict[ txn + "getCustomerOrdersByDistrict"], [d_id], "", randomhost)
+        #rs, status = runNQueryParam(self.prepared_dict[ txn + "getOrdersByDistrict"], [d_id], "", randomhost)
         #Taking too long with 10Warehouses.So disabling 
-        #rs, status = runNQueryParam(self.prepared_dict[ txn + 'ansigetStockCount'], [w_id, d_id, o_id, (o_id - 20), w_id, threshold], txid, randomhost=randomhost)
+        #rs, status = runNQueryParam(self.prepared_dict[ txn + 'ansigetStockCount'], [w_id, d_id, o_id, (o_id - 20), w_id, threshold], txid, randomhost)
 
-        #runNQuery("COMMIT WORK", txid, "", randomhost=randomhost);
+        #runNQuery("COMMIT WORK", txid, "", randomhost)
         return int(result[0]['CNT_OL_I_ID'])
 ## CLASS

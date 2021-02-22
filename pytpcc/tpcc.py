@@ -85,7 +85,7 @@ def startLoading(driverClass, scaleParameters, args, config):
     
     loader_results = [ ]
     for i in range(args['clients']):
-        r = pool.apply_async(loaderFunc, (driverClass, scaleParameters, args, config, w_ids[i], True))
+        r = pool.apply_async(loaderFunc, (i, driverClass, scaleParameters, args, config, w_ids[i], True))
         loader_results.append(r)
     ## FOR
     
@@ -97,8 +97,8 @@ def startLoading(driverClass, scaleParameters, args, config):
 ## ==============================================
 ## loaderFunc
 ## ==============================================
-def loaderFunc(driverClass, scaleParameters, args, config, w_ids, debug):
-    driver = driverClass(args['ddl'])
+def loaderFunc(clientId, driverClass, scaleParameters, args, config, w_ids, debug):
+    driver = driverClass(args['ddl'], clientId)
     assert driver != None
     logging.debug("Starting client execution: %s [warehouses=%d]" % (driver, len(w_ids)))
     
@@ -117,7 +117,6 @@ def loaderFunc(driverClass, scaleParameters, args, config, w_ids, debug):
             return -1
     except (Exception, AssertionError) as ex:
         logging.warn("Failed to load data: %s" % (ex))
-        #if debug:
         traceback.print_exc(file=sys.stdout)
         raise
         
@@ -164,7 +163,7 @@ def startExecution(driverClass, scaleParameters, args, config):
 ## executorFunc
 ## ==============================================
 def executorFunc(clientId, driverClass, scaleParameters, args, config, debug):
-    driver = driverClass(args['ddl'])
+    driver = driverClass(args['ddl'], clientId)
     assert driver != None
     logging.debug("Starting client execution: %s" % driver)
     
@@ -228,10 +227,10 @@ if __name__ == '__main__':
     args = vars(aparser.parse_args())
     print (args)
     if args['debug']: logging.getLogger().setLevel(logging.DEBUG)
-    query_url = "127.0.0.1:8093"
+    query_url = "127.0.0.1:9000"
     userid = "Administrator"
     password = "password"
-    multi_query_url = "127.0.0.1:8093"
+    multi_query_url = "127.0.0.1:9000"
     if args['query_url']:
         query_url = args['query_url']
     os.environ["QUERY_URL"] = query_url
@@ -255,7 +254,7 @@ if __name__ == '__main__':
     ## Create a handle to the target client driver
     driverClass = createDriverClass(args['system'])
     assert driverClass != None, "Failed to find '%s' class" % args['system']
-    driver = driverClass(args['ddl'])
+    driver = driverClass(args['ddl'], -1)
     assert driver != None, "Failed to create '%s' driver" % args['system']
     if args['print_config']:
         config = driver.makeDefaultConfig()

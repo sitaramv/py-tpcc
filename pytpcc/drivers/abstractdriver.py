@@ -110,7 +110,7 @@ class AbstractDriver(object):
             result = self.doStockLevel(params)
         else:
             assert False, "Unexpected TransactionType: " + txn
-        return result
+        return result, self.txStatus()
         
     def doDelivery(self, params):
         """Execute DELIVERY Transaction

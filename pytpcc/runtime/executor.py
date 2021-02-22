@@ -64,6 +64,7 @@ class Executor:
         while (time.time() - start) <= duration:
             txn, params = self.doOne()
             txn_id = r.startTransaction(txn)
+            status = "fatal"
             
             tnum = tnum + 1
             if ( (tnum % 50) == 0):
@@ -73,6 +74,7 @@ class Executor:
             if debug: logging.debug("Executing '%s' transaction" % txn)
             try:
                 val = self.driver.executeTransaction(txn, params)
+                status = self.driver.txStatus()
             except KeyboardInterrupt:
                 return -1
             except (Exception, AssertionError) as ex:
@@ -84,7 +86,7 @@ class Executor:
 
             #if debug: logging.debug("%s\nParameters:\n%s\nResult:\n%s" % (txn, pformat(params), pformat(val)))
             
-            r.stopTransaction(txn_id)
+            r.stopTransaction(txn_id, status)
         ## WHILE
             
         r.stopBenchmark()
