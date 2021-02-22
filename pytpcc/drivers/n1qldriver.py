@@ -33,7 +33,6 @@ from __future__ import with_statement
 
 import os
 import logging
-import commands
 from pprint import pprint,pformat
 
 import json
@@ -41,7 +40,7 @@ import requests
 import time
 
 import constants
-from abstractdriver import *
+from .abstractdriver import *
 
 QUERY_URL = "127.0.0.1:8093"
 USER_ID = "Administrator"
@@ -98,15 +97,15 @@ TXN_QUERIES = {
 }
 
 KEYNAMES = {
-	constants.TABLENAME_ITEM: 	[0],  # INTEGER
-	constants.TABLENAME_WAREHOUSE: 	[0],  # INTEGER
-	constants.TABLENAME_DISTRICT: 	[1, 0],  # INTEGER
-	constants.TABLENAME_CUSTOMER: 	[2, 1, 0], # INTEGER
-	constants.TABLENAME_STOCK: 	[1, 0],  # INTEGER
-	constants.TABLENAME_ORDERS: 	[3, 2, 0], # INTEGER
-	constants.TABLENAME_NEW_ORDER: 	[1, 2, ], # INTEGER
-	constants.TABLENAME_ORDER_LINE: [2, 1, 0, 3], # INTEGER
-	constants.TABLENAME_HISTORY: 	[0],  # INTEGER
+        constants.TABLENAME_ITEM:         [0],  # INTEGER
+        constants.TABLENAME_WAREHOUSE:         [0],  # INTEGER
+        constants.TABLENAME_DISTRICT:         [1, 0],  # INTEGER
+        constants.TABLENAME_CUSTOMER:         [2, 1, 0], # INTEGER
+        constants.TABLENAME_STOCK:         [1, 0],  # INTEGER
+        constants.TABLENAME_ORDERS:         [3, 2, 0], # INTEGER
+        constants.TABLENAME_NEW_ORDER:         [1, 2, ], # INTEGER
+        constants.TABLENAME_ORDER_LINE: [2, 1, 0, 3], # INTEGER
+        constants.TABLENAME_HISTORY:         [0],  # INTEGER
 }
 
 
@@ -272,8 +271,8 @@ def runNQueryParam(query, param):
             QUERY_URL = os.environ["QUERY_URL"]
             USER_ID = os.environ["USER_ID"]
             PASSWORD = os.environ["PASSWORD"]
-        except Exception,ex:
-            print ex
+        except Exception as ex:
+            print (ex)
         stmt = '{"statement" : "' + str(query) + '"'
         # print len(param)
         if (len(param) >  0):
@@ -283,9 +282,9 @@ def runNQueryParam(query, param):
         i=0
         myarg = ""
         for p in param:
-	  	if isinstance(p, (bool)):
-			myarg = myarg + str.lower(str(p))
-		elif isinstance(p,(int, float, long)) and not isinstance(p, (bool)):
+               if isinstance(p, (bool)):
+                        myarg = myarg + str.lower(str(p))
+                elif isinstance(p,(int, float)) and not isinstance(p, (bool)):
                         myarg = myarg + str(p)
                 else:
                         myarg = myarg + '\\"' + str(p) + '\\"'
@@ -302,7 +301,7 @@ def runNQueryParam(query, param):
         r = globcon.post(url, data=query, stream=False)
         #print r.json()
         #print r.json()['results']
-	return r.json()['results']
+        return r.json()['results']
 
 ## ==============================================
 ## n1qlDriver
@@ -327,8 +326,8 @@ class N1QlDriver(AbstractDriver):
             QUERY_URL = os.environ["QUERY_URL"]
             USER_ID = os.environ["USER_ID"]
             PASSWORD = os.environ["PASSWORD"]
-        except Exception,ex:
-            print ex
+        except Exception as ex:
+            print (ex)
         s.auth = (USER_ID, PASSWORD)
 
         url = "http://{0}/query/service".format(QUERY_URL)
@@ -366,9 +365,9 @@ class N1QlDriver(AbstractDriver):
         #No Database creation. 
         #Connection management is via REST gateway. So, nothing to do here.
         # Add bucket creation here.  For now, simply create manually and load.
-	self.database = "tpcc"
-	self.denormalize = config['denormalize']
-	if self.denormalize: logging.debug("Using denormalized data model")
+        self.database = "tpcc"
+        self.denormalize = config['denormalize']
+        if self.denormalize: logging.debug("Using denormalized data model")
         return
     
 
@@ -389,8 +388,8 @@ class N1QlDriver(AbstractDriver):
             QUERY_URL = os.environ["QUERY_URL"]
             USER_ID = os.environ["USER_ID"]
             PASSWORD = os.environ["PASSWORD"]
-        except Exception,ex:
-            print ex
+        except Exception as ex:
+            print (ex)
         url = "http://{0}/query".format(QUERY_URL)   # Update this for your installation.
         ## We want to combine all of a CUSTOMER's ORDERS, ORDER_LINE, and HISTORY records
         ## into a single document
@@ -445,64 +444,64 @@ class N1QlDriver(AbstractDriver):
         ## Otherwise just shove the tuples straight to the target collection
         else:
             i = 0
-	    # print tuples
-	    sql = 'INSERT INTO %s(KEY, VALUE) ' % tableName
-	    for t in tuples:
+            # print tuples
+            sql = 'INSERT INTO %s(KEY, VALUE) ' % tableName
+            for t in tuples:
                 # print tableName
                 # print KEYNAMES[tableName]
-	        # print columns
-	        # print t
-		key = ""
+                # print columns
+                # print t
+                key = ""
                 # print KEYNAMES[tableName]
                 # Normalizing kpart with array indexing.
                 kpart = len(KEYNAMES[tableName]) - 1
                 l = 0
-		for k in KEYNAMES[tableName]:
-			if (l < kpart):
-				key = key + str(t[k]) + '.'
-			else:
-				key = key + str(t[k])
-			l = l + 1;
-	        #sql = 'INSERT INTO %s(KEY, VALUE) VALUES (\\"%s\\", {' % (tableName, key)
-	        if i != 0:
-	            sql = sql + ',VALUES (\\"%s\\", {' % key
-	        else:
-	            sql = sql + 'VALUES (\\"%s\\", {' % key
-	        j=0
+                for k in KEYNAMES[tableName]:
+                        if (l < kpart):
+                                key = key + str(t[k]) + '.'
+                        else:
+                                key = key + str(t[k])
+                        l = l + 1;
+                #sql = 'INSERT INTO %s(KEY, VALUE) VALUES (\\"%s\\", {' % (tableName, key)
+                if i != 0:
+                    sql = sql + ',VALUES (\\"%s\\", {' % key
+                else:
+                    sql = sql + 'VALUES (\\"%s\\", {' % key
+                j=0
                 for x in t:
-		    if isinstance(t[j],(int, float, long)):
-	        	    sql = sql + '\\"%s\\":%s  ' % (columns[j],  t[j])
-		    else:
-	        	    sql = sql + '\\"%s\\":\\"%s\\"  ' % (columns[j],  t[j])
-		    j = j + 1
-		    if j < len(t):
-			    sql = sql + ","
+                    if isinstance(t[j],(int, float)):
+                            sql = sql + '\\"%s\\":%s  ' % (columns[j],  t[j])
+                    else:
+                            sql = sql + '\\"%s\\":\\"%s\\"  ' % (columns[j],  t[j])
+                    j = j + 1
+                    if j < len(t):
+                            sql = sql + ","
                 if ( i == 3333 ):
-	            sql = sql + "})"
-	            nsql = '{"statement": "' + sql + '"}'
-	            jsql = json.loads(nsql)
+                    sql = sql + "})"
+                    nsql = '{"statement": "' + sql + '"}'
+                    jsql = json.loads(nsql)
                     # r = globcon.post(url, data=jsql, stream=False, headers={'Connection':'close'})
                     r = globcon.post(url, data=jsql, stream=False)
-	            # r = requests.post(url, data=jsql, auth=('Administrator', 'password'))
-	            # print tableName, r, i, len(nsql)
-	            # print r.json()
-		    sql = 'INSERT INTO %s(KEY, VALUE) ' % tableName
-	            i = 0
+                    # r = requests.post(url, data=jsql, auth=('Administrator', 'password'))
+                    # print tableName, r, i, len(nsql)
+                    # print r.json()
+                    sql = 'INSERT INTO %s(KEY, VALUE) ' % tableName
+                    i = 0
                 else:
-	            sql = sql + "})"
-		    i = i + 1
-	    # print nsql
-	    nsql = '{"statement": "' + sql + '"}'
-	    jsql = json.loads(nsql)
-	    # print nsql
+                    sql = sql + "})"
+                    i = i + 1
+            # print nsql
+            nsql = '{"statement": "' + sql + '"}'
+            jsql = json.loads(nsql)
+            # print nsql
         r = globcon.post(url, data=jsql, stream=False, headers={'Connection':'close'})
-	    # r = requests.post(url, data=jsql, auth=('Administrator', 'password'))
-	    # r = globcon.post(url, data=jsql, stream=False)
-	    # print tableName, r, i, len(nsql)
-	    # print r.json()
+            # r = requests.post(url, data=jsql, auth=('Administrator', 'password'))
+            # r = globcon.post(url, data=jsql, stream=False)
+            # print tableName, r, i, len(nsql)
+            # print r.json()
 
         ## IF
-	logging.debug("LoadTuples:%s: %s" %  (tableName, nsql))
+        logging.debug("LoadTuples:%s: %s" %  (tableName, nsql))
         
         return
         
@@ -518,7 +517,7 @@ class N1QlDriver(AbstractDriver):
                 logging.debug("%-12s%d records" % (name+":", self.database[name].count()))
         #Nothing to commit for N1QL
 
-	return
+        return
 
 
 
@@ -526,7 +525,7 @@ class N1QlDriver(AbstractDriver):
     ## doDelivery
     ## ----------------------------------------------
     def doDelivery(self, params):
-	# print "Entering doDelivery"
+        # print "Entering doDelivery"
         txn = "DELIVERY"
         q = TXN_QUERIES[txn]
         w_id = params["w_id"]
@@ -536,7 +535,7 @@ class N1QlDriver(AbstractDriver):
         result = [ ]
         for d_id in range(1, constants.DISTRICTS_PER_WAREHOUSE+1):
 
-	    newOrder = runNQueryParam(self.prepared_dict[ txn + "getNewOrder"], [d_id, w_id])
+            newOrder = runNQueryParam(self.prepared_dict[ txn + "getNewOrder"], [d_id, w_id])
             if len(newOrder) == 0:
                 ## No orders for this district: skip it. Note: This must be reported if > 1%
                 continue
@@ -547,7 +546,7 @@ class N1QlDriver(AbstractDriver):
 
             assert len(rs) > 0
 
-	    c_id = rs[0]['O_C_ID']
+            c_id = rs[0]['O_C_ID']
             
             rs2 = runNQueryParam(self.prepared_dict[ txn + "sumOLAmount"], [no_o_id, d_id, w_id])
 
@@ -576,10 +575,10 @@ class N1QlDriver(AbstractDriver):
     ## doNewOrder
     ## ----------------------------------------------
     def doNewOrder(self, params):
-	# print "Entering doNewOrder"
+        # print "Entering doNewOrder"
         txn = "NEW_ORDER"
         q = TXN_QUERIES[txn]
-	d_next_o_id = 0
+        d_next_o_id = 0
         w_id = params["w_id"]
         d_id = params["d_id"]
         c_id = params["c_id"]
@@ -601,7 +600,7 @@ class N1QlDriver(AbstractDriver):
             ## Determine if this is an all local order or not
             all_local = all_local and i_w_ids[i] == w_id
             rs = runNQueryParam(self.prepared_dict[ txn + "getItemInfo"], [i_ids[i]])
-	    #keshav added.  Needed? assert len(rs) > 0
+            #keshav added.  Needed? assert len(rs) > 0
             items.append(rs[0])
         assert len(items) == len(i_ids)
         
@@ -611,7 +610,7 @@ class N1QlDriver(AbstractDriver):
         for item in items:
             if len(item) == 0:
                 ## TODO Abort here!
-		# print "//aborted"
+                # print "//aborted"
                 return
         ## FOR
         
@@ -631,7 +630,7 @@ class N1QlDriver(AbstractDriver):
             d_next_o_id = district_info[0]['D_NEXT_O_ID']
         
         rs = runNQueryParam(self.prepared_dict[ txn + "getCustomer"], [w_id, d_id, c_id])
-	if len(rs) != 0:
+        if len(rs) != 0:
             c_discount = rs[0]['C_DISCOUNT']
 
         ## ----------------
@@ -660,7 +659,7 @@ class N1QlDriver(AbstractDriver):
             ol_quantity = i_qtys[i]
             itemInfo = items[i]
 
-	    # print "itemInfo: " + str(itemInfo)
+            # print "itemInfo: " + str(itemInfo)
             i_name = itemInfo["I_NAME"]
             i_data = itemInfo["I_DATA"]
             i_price = itemInfo["I_PRICE"]
@@ -678,7 +677,7 @@ class N1QlDriver(AbstractDriver):
             s_order_cnt = stockInfo[0]["S_ORDER_CNT"]
             s_remote_cnt = stockInfo[0]["S_REMOTE_CNT"]
             s_data = stockInfo[0]["S_DATA"]
-	    distxx = "S_DIST_" + str(d_id).zfill(2);
+            distxx = "S_DIST_" + str(d_id).zfill(2);
             # print "NewOrder Stage #4.01"
             # print distxx
             # print stockInfo[0][distxx]
@@ -732,7 +731,7 @@ class N1QlDriver(AbstractDriver):
     ## doOrderStatus
     ## ----------------------------------------------
     def doOrderStatus(self, params):
-	# print "Entering doOrderStatus"
+        # print "Entering doOrderStatus"
         txn = "ORDER_STATUS"
         q = TXN_QUERIES[txn]
         w_id = params["w_id"]
@@ -745,13 +744,13 @@ class N1QlDriver(AbstractDriver):
 
         if c_id != None:
             customerlist = runNQueryParam(self.prepared_dict[ txn + "getCustomerByCustomerId"], [w_id, d_id, c_id])
-	    customer = customerlist[0]
+            customer = customerlist[0]
         else:
             # Get the midpoint customer's id
             all_customers = runNQueryParam(self.prepared_dict[ txn + "getCustomersByLastName"], [w_id, d_id, c_last])
             assert len(all_customers) > 0
             namecnt = len(all_customers)
-            index = (namecnt-1)/2
+            index = int((namecnt-1)/2)
             customer = all_customers[index]
             c_id = customer['C_ID']
         assert len(customer) > 0
@@ -770,7 +769,7 @@ class N1QlDriver(AbstractDriver):
     ## doPayment
     ## ----------------------------------------------
     def doPayment(self, params):
-	# print "Entering doPayment"
+        # print "Entering doPayment"
         txn = "PAYMENT"
         q = TXN_QUERIES[txn]
         w_id = params["w_id"]
@@ -791,7 +790,7 @@ class N1QlDriver(AbstractDriver):
 
             assert len(all_customers) > 0
             namecnt = len(all_customers)
-            index = (namecnt-1)/2
+            index = int((namecnt-1)/2)
             customer = all_customers[index]
             c_id = customer['C_ID']
         assert len(customer) > 0
@@ -800,7 +799,7 @@ class N1QlDriver(AbstractDriver):
         c_payment_cnt = customer['C_PAYMENT_CNT'] + 1
         c_data = customer['C_DATA']
 
-	# print "doPayment: Stage 2"
+        # print "doPayment: Stage 2"
 
         warehouse = runNQueryParam(self.prepared_dict[ txn + "getWarehouse"], [w_id])
 
@@ -809,7 +808,7 @@ class N1QlDriver(AbstractDriver):
         runNQueryParam(self.prepared_dict[ txn + "updateWarehouseBalance"], [h_amount, w_id])
         runNQueryParam(self.prepared_dict[ txn + "updateDistrictBalance"], [h_amount, w_id, d_id])
 
-	# print "doPayment: Stage3"
+        # print "doPayment: Stage3"
 
         # Customer Credit Information
         if customer['C_CREDIT'] == constants.BAD_CREDIT:
@@ -821,10 +820,10 @@ class N1QlDriver(AbstractDriver):
             c_data = ""
             runNQueryParam(self.prepared_dict[ txn + "updateGCCustomer"], [c_balance, c_ytd_payment, c_payment_cnt, c_w_id, c_d_id, c_id])
 
-	# print "doPayment: Stage4"
+        # print "doPayment: Stage4"
         # Concatenate w_name, four spaces, d_name
-	# print "warehouse %s" % (str(warehouse))
-	# print "district %s" % (str(district))
+        # print "warehouse %s" % (str(warehouse))
+        # print "district %s" % (str(district))
         h_data = "%s    %s" % (warehouse[0]['W_NAME'], district[0]['D_NAME'])
         # Create the history record
         runNQueryParam(self.prepared_dict[ txn + "insertHistory"], [c_id, c_d_id, c_w_id, d_id, w_id, h_date, h_amount, h_data])
@@ -838,7 +837,7 @@ class N1QlDriver(AbstractDriver):
         # C_DISCOUNT, C_BALANCE, the first 200 characters of C_DATA (only if C_CREDIT = "BC"),
         # H_AMOUNT, and H_DATE.
 
-	# print "doPayment: Stage5"
+        # print "doPayment: Stage5"
         # Hand back all the warehouse, district, and customer data
         return [ warehouse, district, customer ]
 
@@ -846,7 +845,7 @@ class N1QlDriver(AbstractDriver):
     ## doStockLevel
     ## ----------------------------------------------
     def doStockLevel(self, params):
-	# print "Entering doStockLevel"
+        # print "Entering doStockLevel"
         txn = "STOCK_LEVEL"
         q = TXN_QUERIES[txn]
 

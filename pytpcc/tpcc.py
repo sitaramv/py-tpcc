@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------
 # Copyright (C) 2011
@@ -35,7 +35,7 @@ import argparse
 import glob
 import time 
 import multiprocessing
-from ConfigParser import SafeConfigParser
+from configparser import SafeConfigParser
 from pprint import pprint,pformat
 
 from util import *
@@ -115,7 +115,7 @@ def loaderFunc(driverClass, scaleParameters, args, config, w_ids, debug):
         driver.loadFinish()   
     except KeyboardInterrupt:
             return -1
-    except (Exception, AssertionError), ex:
+    except (Exception, AssertionError) as ex:
         logging.warn("Failed to load data: %s" % (ex))
         #if debug:
         traceback.print_exc(file=sys.stdout)
@@ -195,7 +195,7 @@ if __name__ == '__main__':
                          help='query-url <ip>:port', default = "127.0.0.1:8093")
     aparser.add_argument('--multi-query-url',
                          help = 'multi-query-url <ip>:port', default = "127.0.0.1:8093")
-    aparser.add_argument('--config', type=file,
+    aparser.add_argument('--config', type=argparse.FileType('r'),
                          help='Path to driver configuration file')
     aparser.add_argument('--reset', action='store_true',
                          help='Instruct the driver to reset the contents of the database')
@@ -226,12 +226,12 @@ if __name__ == '__main__':
     aparser.add_argument('--scan_consistency', metavar='not_bounded', default="not_bounded",
                          help='not_bounded,request_plus')
     args = vars(aparser.parse_args())
-    print args
+    print (args)
     if args['debug']: logging.getLogger().setLevel(logging.DEBUG)
-    query_url = "127.0.0.1:9000"
+    query_url = "127.0.0.1:8093"
     userid = "Administrator"
     password = "password"
-    multi_query_url = "127.0.0.1:9000"
+    multi_query_url = "127.0.0.1:8093"
     if args['query_url']:
         query_url = args['query_url']
     os.environ["QUERY_URL"] = query_url
@@ -259,8 +259,7 @@ if __name__ == '__main__':
     assert driver != None, "Failed to create '%s' driver" % args['system']
     if args['print_config']:
         config = driver.makeDefaultConfig()
-        print driver.formatConfig(config)
-        print
+        print (driver.formatConfig(config))
         sys.exit(0)
 
     ## Load Configuration file
@@ -311,7 +310,7 @@ if __name__ == '__main__':
             results = startExecution(driverClass, scaleParameters, args, config)
             print('Execution Completed')
         assert results
-        print results.show(load_time)
+        print (results.show(load_time))
     ## IF
     
 ## MAIN
