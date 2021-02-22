@@ -33,6 +33,7 @@ from __future__ import with_statement
 
 import os
 import logging
+import subprocess
 from pprint import pprint,pformat
 
 import json

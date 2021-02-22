@@ -32,6 +32,7 @@
 from __future__ import with_statement
 
 import os
+import subprocess
 import logging
 from pprint import pprint,pformat
 
