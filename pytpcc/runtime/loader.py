@@ -160,7 +160,7 @@ class Loader:
         
         ## Select 10% of the stock to be marked "original"
         s_tuples = [ ]
-        selectedRows = rand.selectUniqueIds(self.scaleParameters.items / 10, 1, self.scaleParameters.items)
+        selectedRows = rand.selectUniqueIds(self.scaleParameters.items // 10, 1, self.scaleParameters.items)
         total_tuples = 0
         for i_id in range(1, self.scaleParameters.items+1):
             original = (i_id in selectedRows)
