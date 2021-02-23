@@ -360,19 +360,15 @@ def n1ql_execute(query_node, stmt):
 
     stmt['creds'] = gcreds
     url = "http://{0}/query/service".format(query_node)
-    conn_pool = globpool.connection_from_url(url, pool_kwargs = {"retries":100, "maxsize":60})
-    for i in range(2):
-        try:
-            response = conn_pool.request('POST', '/query/service', fields=stmt, encode_multipart=False)
-            if response.status == requests.codes.ok :
-                response.read(cache_content=False)
-                body = json.loads(response.data.decode('utf8'))
-#                if body['status'] != "success":
-#                    logging.info("%s --- %s" % (stmt, json.JSONEncoder().encode(body)))
-                return body
-        except:
-            if i != 0 :
-               break
+    try:
+        response = conn_pool.request('POST', url, fields=stmt, encode_multipart=False)
+        response.read(cache_content=False)
+        body = json.loads(response.data.decode('utf8'))
+#        if body['status'] != "success":
+#            logging.info("%s --- %s" % (stmt, json.JSONEncoder().encode(body)))
+        return body
+    except:
+        pass
     return {}
 
 ## ==============================================
@@ -409,7 +405,7 @@ class NestcollectionsDriver(AbstractDriver):
             return
 
         gcreds = '[{"user":"' + os.environ["USER_ID"] + '","pass":"' + os.environ["PASSWORD"] + '"}]'
-        globpool = PoolManager(10)
+        globpool = PoolManager(10, retries=urllib3.Retry(10), maxsize=60)
         for txn in TXN_QUERIES:
             for query in TXN_QUERIES[txn]:
                 if query == "getStockInfo":
