@@ -361,7 +361,7 @@ def n1ql_execute(query_node, stmt):
     stmt['creds'] = gcreds
     url = "http://{0}/query/service".format(query_node)
     try:
-        response = conn_pool.request('POST', url, fields=stmt, encode_multipart=False)
+        response = globpool.request('POST', url, fields=stmt, encode_multipart=False)
         response.read(cache_content=False)
         body = json.loads(response.data.decode('utf8'))
 #        if body['status'] != "success":
