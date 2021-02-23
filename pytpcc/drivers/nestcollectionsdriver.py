@@ -421,6 +421,10 @@ class NestcollectionsDriver(AbstractDriver):
                     n1ql_execute(self.query_node, stmt)
                     prepared_dict[txn + query] = "%s_%s" % (txn, query)
 
+        # wait prepare statements populate other query nodes
+        if len(self.MULTI_QUERY_LIST) > 1:
+            time.sleep(15)
+
 
     ## ----------------------------------------------
     ## makeDefaultConfig
