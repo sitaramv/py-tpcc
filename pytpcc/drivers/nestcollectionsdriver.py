@@ -528,7 +528,7 @@ class NestcollectionsDriver(AbstractDriver):
                 j=0
                 for x in t:
                     if isinstance(t[j],(int, float)):
-                            sql = sql + '\\"%s\\":%s  ' % (columns[j],  t[j])
+                            sql = sql + '\\"%s\\":%s  ' % (columns[j],  str(t[j]))
                     else:
                             sql = sql + '\\"%s\\":\\"%s\\"  ' % (columns[j],  t[j])
                     j = j + 1
