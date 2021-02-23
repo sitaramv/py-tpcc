@@ -106,10 +106,10 @@ TXN_QUERIES = {
     
     "STOCK_LEVEL": {
         "getOId": "SELECT D_NEXT_O_ID FROM default:default.tpcc.DISTRICT WHERE D_W_ID = $1 AND D_ID = $2",
-        "getStockCount": " SELECT COUNT(DISTINCT(o.OL_I_ID)) AS CNT_OL_I_ID FROM  default:default.tpcc.ORDER_LINE o INNER JOIN default:default.tpcc.STOCK s ON KEYS (TO_STRING(o.OL_W_ID) || '.' ||  TO_STRING(o.OL_I_ID)) WHERE o.OL_W_ID = $1 AND o.OL_D_ID = $2 AND o.OL_O_ID < $3 AND o.OL_O_ID >= $4 AND s.S_QUANTITY < $6 ",
-        "ansigetStockCount": " SELECT COUNT(DISTINCT(o.OL_I_ID)) AS CNT_OL_I_ID FROM  default:default.tpcc.ORDER_LINE o INNER JOIN default:default.tpcc.STOCK s ON (o.OL_W_ID == s.S_W_ID AND o.OL_I_ID ==  s.S_I_ID) WHERE o.OL_W_ID = $1 AND o.OL_D_ID = $2 AND o.OL_O_ID < $3 AND o.OL_O_ID >= $4 AND s.S_QUANTITY < $6 ",
-        "getOrdersByDistrict": "SELECT * FROM  default:default.tpcc.DISTRICT d INNER JOIN default:default.tpcc.ORDERS o ON d.D_ID == o.O_D_ID where d.D_ID = $1",
-        "getCustomerOrdersByDistrict": "SELECT COUNT(DISTINCT(c.C_ID)) FROM  default:default.tpcc.CUSTOMER c INNER JOIN default:default.tpcc.ORDERS o USE HASH(BUILD) ON c.C_ID == o.O_C_ID WHERE c.C_D_ID = $1" # d_ID
+        "getStockCount": " SELECT COUNT(DISTINCT(o.OL_I_ID)) AS CNT_OL_I_ID FROM  default:default.tpcc.ORDER_LINE o INNER JOIN default:default.tpcc.STOCK s ON KEYS (TO_STRING(o.OL_W_ID) || '.' ||  TO_STRING(o.OL_I_ID)) WHERE o.OL_W_ID = $1 AND o.OL_D_ID = $2 AND o.OL_O_ID < $3 AND o.OL_O_ID >= $4 AND s.S_QUANTITY < $6 "
+#        "ansigetStockCount": " SELECT COUNT(DISTINCT(o.OL_I_ID)) AS CNT_OL_I_ID FROM  default:default.tpcc.ORDER_LINE o INNER JOIN default:default.tpcc.STOCK s ON (o.OL_W_ID == s.S_W_ID AND o.OL_I_ID ==  s.S_I_ID) WHERE o.OL_W_ID = $1 AND o.OL_D_ID = $2 AND o.OL_O_ID < $3 AND o.OL_O_ID >= $4 AND s.S_QUANTITY < $6 ",
+#        "getOrdersByDistrict": "SELECT * FROM  default:default.tpcc.DISTRICT d INNER JOIN default:default.tpcc.ORDERS o ON d.D_ID == o.O_D_ID where d.D_ID = $1",
+#        "getCustomerOrdersByDistrict": "SELECT COUNT(DISTINCT(c.C_ID)) FROM  default:default.tpcc.CUSTOMER c INNER JOIN default:default.tpcc.ORDERS o USE HASH(BUILD) ON c.C_ID == o.O_C_ID WHERE c.C_D_ID = $1" # d_ID
     },
 }
 
@@ -413,13 +413,13 @@ class NestcollectionsDriver(AbstractDriver):
                         converted_district = TXN_QUERIES[txn][query] % i
                         prepare_query = "PREPARE %s_%s_%s " % (txn, i, query) + "FROM %s" % converted_district
                         stmt = json.loads('{"statement" : "' + str(prepare_query) + '"}')
-                        n1ql_execute(self.query_node, stmt)
-                        prepared_dict[txn + str(i) + query] = "%s_%s_%s" % (txn, i, query)
+                        body = n1ql_execute(self.query_node, stmt)
+                        prepared_dict[txn + str(i) + query] = body['results'][0]['name']
                 else:
                     prepare_query = "PREPARE %s_%s " % (txn, query) + "FROM %s" % TXN_QUERIES[txn][query]
                     stmt = json.loads('{"statement" : "' + str(prepare_query) + '"}')
-                    n1ql_execute(self.query_node, stmt)
-                    prepared_dict[txn + query] = "%s_%s" % (txn, query)
+                    body = n1ql_execute(self.query_node, stmt)
+                    prepared_dict[txn + query] = body['results'][0]['name']
 
         # wait prepare statements populate other query nodes
         if len(self.MULTI_QUERY_LIST) > 1:
@@ -587,50 +587,38 @@ class NestcollectionsDriver(AbstractDriver):
         o_carrier_id = params["o_carrier_id"]
         ol_delivery_d = params["ol_delivery_d"]
 
+        rs, status = runNQuery("begin", self.prepared_dict[ txn + "beginWork"],"",self.delivery_txtimeout, randomhost)
+        txid = rs[0]['txid']
         result = [ ]
         for d_id in range(1, constants.DISTRICTS_PER_WAREHOUSE+1):
-            rs, status = runNQuery("begin", self.prepared_dict[ txn + "beginWork"],"",self.delivery_txtimeout, randomhost)
-            txid = rs[0]['txid']
             newOrder, status = runNQueryParam(self.prepared_dict[ txn + "getNewOrder"], [d_id, w_id], txid, randomhost)
             if len(newOrder) == 0:
-                trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
-                self.tx_status = "assert"
-                return
                 assert len(newOrder) > 0
                 ## No orders for this district: skip it. Note: This must be reported if > 1%
-                return
+                continue
             no_o_id = newOrder[0]['NO_O_ID']
             
             rs, status = runNQueryParam(self.prepared_dict[ txn + "getCId"], [no_o_id, d_id, w_id],txid, randomhost)
             if (status != "success"):
-                     trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
-                     continue
-
+                continue
             c_id = rs[0]['O_C_ID']
             
             rs2,status = runNQueryParam(self.prepared_dict[ txn + "sumOLAmount"], [no_o_id, d_id, w_id], txid, randomhost)
-
             if (status != "success"):
-                     trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
-                     continue
+                continue
             ol_total = rs2[0]['SUM_OL_AMOUNT']
 
             result,status = runNQueryParam(self.prepared_dict[ txn + "deleteNewOrder"], [d_id, w_id, no_o_id], txid, randomhost)
             if (status != "success"):
-                     trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
-                     continue
+                continue
             
             result,status = runNQueryParam(self.prepared_dict[ txn + "updateOrders"], [o_carrier_id, no_o_id, d_id, w_id], txid, randomhost)
             if (status != "success"):
-                     trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
-                     continue
+                continue
 
             result,status = runNQueryParam(self.prepared_dict[ txn + "updateOrderLine"], [ol_delivery_d, no_o_id, d_id, w_id], txid, randomhost)
             if (status != "success"):
-                     trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
-                     continue
-
-
+                continue
             
             # These must be logged in the "result file" according to TPC-C 2.7.2.2 (page 39)
             # We remove the queued time, completed time, w_id, and o_carrier_id: the client can figure
@@ -641,8 +629,7 @@ class NestcollectionsDriver(AbstractDriver):
 
             result,status = runNQueryParam(self.prepared_dict[ txn + "updateCustomer"], [ol_total, c_id, d_id, w_id], txid, randomhost)
             if (status != "success"):
-                     trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
-                     continue
+                continue
 
             result.append((d_id, no_o_id))
         ## FOR
@@ -765,6 +752,7 @@ class NestcollectionsDriver(AbstractDriver):
             # print "NewOrder Stage #3"
             stockInfo, status = runNQueryParam(self.prepared_dict[ txn + str(d_id) + "getStockInfo"], [ol_i_id, ol_supply_w_id], txid, randomhost)
             if len(stockInfo) == 0:
+                trs, self.tx_status = runNQuery("rollback", self.prepared_dict[ txn + "rollbackWork"],txid,"",randomhost)
                 logging.warn("No STOCK record for (ol_i_id=%d, ol_supply_w_id=%d)" % (ol_i_id, ol_supply_w_id))
                 return
 
@@ -814,8 +802,6 @@ class NestcollectionsDriver(AbstractDriver):
             item_data.append( (i_name, s_quantity, brand_generic, i_price, ol_amount) )
         ## FOR
         trs, self.tx_status = runNQuery("commit", self.prepared_dict[ txn + "commitWork"], txid, "",randomhost)
-        ## Commit!
-        # keshav: self.conn.commit()
 
         ## Adjust the total for the discount
         #print "c_discount:", c_discount, type(c_discount)

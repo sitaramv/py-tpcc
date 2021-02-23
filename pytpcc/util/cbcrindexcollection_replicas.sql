@@ -1,6 +1,6 @@
 drop index CUSTOMER.CU_W_ID_D_ID_LAST USING GSI
 drop index DISTRICT.DI_ID_W_ID USING GSI
-drop index NEW_ORDER.NO_D_ID_W_ID USING GSI
+drop index NEW_ORDER.D_ID_W_ID_O_ID USING GSI
 drop index ORDERS.OR_O_ID_D_ID_W_ID USING GSI
 drop index ORDERS.OR_W_ID_D_ID_C_ID USING GSI
 drop index ORDER_LINE.OL_O_ID_D_ID_W_ID USING GSI
@@ -16,7 +16,7 @@ drop primary index on STOCK USING GSI
 drop primary index on WAREHOUSE USING GSI
 CREATE INDEX CU_W_ID_D_ID_LAST on CUSTOMER(C_W_ID, C_D_ID, C_LAST) USING GSI WITH {"defer_build": true, "num_replica":replicas}
 CREATE INDEX DI_ID_W_ID on DISTRICT(D_ID, D_W_ID) USING GSI WITH {"defer_build": true, "num_replica":replicas}
-CREATE INDEX NO_D_ID_W_ID on NEW_ORDER(NO_O_ID, NO_D_ID, NO_W_ID) USING GSI WITH {"defer_build": true, "num_replica":replicas}
+CREATE INDEX D_ID_W_ID_O_ID on NEW_ORDER(NO_D_ID, NO_W_ID, NO_O_ID) USING GSI WITH {"defer_build": true, "num_replica":replicas}
 CREATE INDEX OR_O_ID_D_ID_W_ID on ORDERS(O_ID, O_D_ID, O_W_ID, O_C_ID) USING GSI WITH {"defer_build": true, "num_replica":replicas}
 CREATE INDEX OR_W_ID_D_ID_C_ID on ORDERS(O_W_ID, O_D_ID, O_C_ID) USING GSI WITH {"defer_build": true, "num_replica":replicas}
 CREATE INDEX OL_O_ID_D_ID_W_ID on ORDER_LINE(OL_O_ID, OL_D_ID, OL_W_ID) USING GSI WITH {"defer_build": true, "num_replica":replicas}
