@@ -276,7 +276,7 @@ TABLE_INDEXES = {
     ],
 }
 
-globpool = 0
+globpool = None
 gcreds = '[{"user":"Administrator","pass":"password"}]'
 prepared_dict = {}
 
@@ -400,12 +400,14 @@ class NestcollectionsDriver(AbstractDriver):
         self.delivery_txtimeout = TxTimeoutFactor(os.environ["TXTIMEOUT"], 1)
         self.stock_txtimeout = TxTimeoutFactor(os.environ["TXTIMEOUT"], 40)
 
+        if globpool == None:
+            gcreds = '[{"user":"' + os.environ["USER_ID"] + '","pass":"' + os.environ["PASSWORD"] + '"}]'
+            globpool = PoolManager(10, retries=urllib3.Retry(10), maxsize=60)
+
         if clientId >= 0:
             self.prepared_dict = prepared_dict
             return
 
-        gcreds = '[{"user":"' + os.environ["USER_ID"] + '","pass":"' + os.environ["PASSWORD"] + '"}]'
-        globpool = PoolManager(10, retries=urllib3.Retry(10), maxsize=60)
         for txn in TXN_QUERIES:
             for query in TXN_QUERIES[txn]:
                 if query == "getStockInfo":
