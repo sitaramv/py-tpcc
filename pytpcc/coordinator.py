@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------
 # Copyright (C) 2011
@@ -38,7 +38,7 @@ import pickle
 import execnet
 import worker
 import message
-from ConfigParser import SafeConfigParser
+from configparser import ConfigParser
 from pprint import pprint,pformat
 
 from util import *
@@ -76,11 +76,11 @@ def getDrivers():
 def startLoading(scalParameters,args,config,channels):  
     #Split the warehouses into chunks
     procs = len(channels)
-    w_ids = map(lambda x:[], range(procs))
+    w_ids = [[] for _ in range(procs)]
     for w_id in range(scaleParameters.starting_warehouse, scaleParameters.ending_warehouse+1):
-        idx = w_id % procs
+        idx = int(w_id % procs)
         w_ids[idx].append(w_id)
-    print w_ids
+    print (w_ids)
         
     load_start=time.time()
     for i in range(len(channels)):
@@ -116,7 +116,8 @@ if __name__ == '__main__':
     aparser = argparse.ArgumentParser(description='Python implementation of the TPC-C Benchmark')
     aparser.add_argument('system', choices=getDrivers(),
                          help='Target system driver')
-    aparser.add_argument('--config', type=file,
+#    aparser.add_argument('--config', type=argparse.FileType('rb'),
+    aparser.add_argument('--config', default=os.path.realpath(os.path.join(os.path.dirname(__file__), "tpcc.config")),
                          help='Path to driver configuration file')
     aparser.add_argument('--reset', action='store_true',
                          help='Instruct the driver to reset the contents of the database')
@@ -153,15 +154,16 @@ if __name__ == '__main__':
     assert driver != None, "Failed to create '%s' driver" % args['system']
     if args['print_config']:
         config = driver.makeDefaultConfig()
-        print driver.formatConfig(config)
-        print
+        print (driver.formatConfig(config))
+        print ()
         sys.exit(0)
 
     ## Load Configuration file
     if args['config']:
         logging.debug("Loading configuration file '%s'" % args['config'])
-        cparser = SafeConfigParser()
-        cparser.read(os.path.realpath(args['config'].name))
+        cparser = ConfigParser()
+#        cparser.read(os.path.realpath(args['config'].name))
+        cparser.read(args['config'])
         config = dict(cparser.items(args['system']))
     else:
         logging.debug("Using default configuration for %s" % args['system'])
@@ -186,7 +188,7 @@ if __name__ == '__main__':
         cmd = 'ssh='+ node
         cmd += r"//chdir="
         cmd += config['path']
-        #print cmd
+        print (cmd)
         for i in range(args['clientprocs']):
             gw=execnet.makegateway(cmd)
             ch=gw.remote_exec(worker)
@@ -208,7 +210,7 @@ if __name__ == '__main__':
     if not args['no_execute']:
         results = startExecution(scaleParameters, args, config,channels)
         assert results
-        print results.show(load_time)
+        print (results.show(load_time))
     ## IF
     
 ## MAIN

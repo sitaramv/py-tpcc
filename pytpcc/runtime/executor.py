@@ -66,8 +66,11 @@ class Executor:
                 val = self.driver.executeTransaction(txn, params)
             except KeyboardInterrupt:
                 return -1
-            except (Exception, AssertionError), ex:
-                logging.warn("Failed to execute Transaction '%s': %s" % (txn, ex))
+            except (Exception, AssertionError) as ex:
+                if self.driver.name == "couchbase" and "commit" in ex.message:
+                     logging.debug("Failed to execute Transaction '%s': %s" % (txn, ex))
+                else:
+                     logging.warning("Failed to execute Transaction '%s': %s" % (txn, ex))
                 if debug: traceback.print_exc(file=sys.stdout)
                 if self.stop_on_error: raise
                 r.abortTransaction(txn_id)

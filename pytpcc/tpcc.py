@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------
 # Copyright (C) 2011
@@ -35,7 +35,7 @@ import argparse
 import glob
 import time 
 import multiprocessing
-from ConfigParser import SafeConfigParser
+from configparser import ConfigParser
 from pprint import pprint,pformat
 
 from util import *
@@ -76,9 +76,9 @@ def startLoading(driverClass, scaleParameters, args, config):
     debug = logging.getLogger().isEnabledFor(logging.DEBUG)
     
     # Split the warehouses into chunks
-    w_ids = map(lambda x: [ ], range(args['clients']))
+    w_ids = [[] for _ in range(args['clients'])]
     for w_id in range(scaleParameters.starting_warehouse, scaleParameters.ending_warehouse+1):
-        idx = w_id % args['clients']
+        idx = int(w_id % args['clients'])
         w_ids[idx].append(w_id)
     ## FOR
     
@@ -114,9 +114,8 @@ def loaderFunc(driverClass, scaleParameters, args, config, w_ids, debug):
         driver.loadFinish()   
     except KeyboardInterrupt:
             return -1
-    except (Exception, AssertionError), ex:
-        logging.warn("Failed to load data: %s" % (ex))
-        #if debug:
+    except (Exception, AssertionError) as ex:
+        logging.warning("Failed to load data: %s" % (ex))
         traceback.print_exc(file=sys.stdout)
         raise
         
@@ -177,7 +176,8 @@ if __name__ == '__main__':
     aparser = argparse.ArgumentParser(description='Python implementation of the TPC-C Benchmark')
     aparser.add_argument('system', choices=getDrivers(),
                          help='Target system driver')
-    aparser.add_argument('--config', type=file,
+#    aparser.add_argument('--config', type=argparse.FileType('rb'),
+    aparser.add_argument('--config', default=os.path.realpath(os.path.join(os.path.dirname(__file__), "tpcc.config")),
                          help='Path to driver configuration file')
     aparser.add_argument('--reset', action='store_true',
                          help='Instruct the driver to reset the contents of the database')
@@ -212,20 +212,22 @@ if __name__ == '__main__':
     assert driver != None, "Failed to create '%s' driver" % args['system']
     if args['print_config']:
         config = driver.makeDefaultConfig()
-        print driver.formatConfig(config)
-        print
+        print (driver.formatConfig(config))
+        print ('')
         sys.exit(0)
 
     ## Load Configuration file
     if args['config']:
         logging.debug("Loading configuration file '%s'" % args['config'])
-        cparser = SafeConfigParser()
-        cparser.read(os.path.realpath(args['config'].name))
+        cparser = ConfigParser()
+        cparser.read(args['config'])
+#        cparser.read(os.path.realpath(args['config'].name))
         config = dict(cparser.items(args['system']))
     else:
         logging.debug("Using default configuration for %s" % args['system'])
         defaultConfig = driver.makeDefaultConfig()
         config = dict(map(lambda x: (x, defaultConfig[x][1]), defaultConfig.keys()))
+
     config['reset'] = args['reset']
     config['load'] = False
     config['execute'] = False
@@ -263,7 +265,7 @@ if __name__ == '__main__':
         else:
             results = startExecution(driverClass, scaleParameters, args, config)
         assert results
-        print results.show(load_time)
+        print (results.show(load_time))
     ## IF
     
 ## MAIN
