@@ -3,13 +3,13 @@ Setup cluster:
 
      1) Change localhost, host2,host3,host4
      2) Change memory size, indexer storage  (memopt)
-     3) Change the threds
+     3) Change the threads
      4) Change the bucket replica, bucket eviction policy
      5) Change index replicas
 
      couchbase-cli cluster-init -c localhost --cluster-username Administrator --cluster-password password --services data,index,query --cluster-ramsize 20000 --cluster-index-ramsize 20000 --index-storage-setting default
      couchbase-cli server-add -c localhost -u Administrator -p password --services data --server-add host2,host3,host4 --server-add-username Administrator --server-add-password password
-     curl -X POST -u Administrator:password http://localhost:8091/pools/default/settings/memcached/global -d num_reader_threads=8 -d num_writer_threads=8
+     curl -X POST -u Administrator:password http://localhost:8091/pools/default/settings/memcached/global -d num_reader_threads=8 -d num_writer_threads=8 -d num_storage_threads=8
      couchbase-cli bucket-create -c localhost -u Administrator -p password --bucket default --bucket-type couchbase --bucket-ramsize 20000 --bucket-replica 0 --bucket-eviction-policy fullEviction --enable-flush 1
      couchbase-cli rebalance -c localhost -u Administrator -p password
      couchbase-cli collection-manage -c localhost -u Administrator -p password --bucket default --create-scope tpcc
@@ -22,13 +22,13 @@ Setup cluster:
      couchbase-cli collection-manage -c localhost -u Administrator -p password --bucket default --create-collection tpcc.ORDER_LINE
      couchbase-cli collection-manage -c localhost -u Administrator -p password --bucket default --create-collection tpcc.STOCK
      couchbase-cli collection-manage -c localhost -u Administrator -p password --bucket default --create-collection tpcc.WAREHOUSE
-     curl -u Administrator:password http://localhost:8093/query/service -H "Content-Type: application/json" -d '{"statement":"CREATE INDEX CU_W_ID_D_ID_LAST ON default.tpcc.CUSTOMER(C_W_ID, C_D_ID, C_LAST) WITH {"num_replica":0}"}'
-     curl -u Administrator:password http://localhost:8093/query/service -H "Content-Type: application/json" -d '{"statement":"CREATE INDEX DI_ID_W_ID ON default.tpcc.DISTRICT(D_ID, D_W_ID) WITH {"num_replica":0}"}'
-     curl -u Administrator:password http://localhost:8093/query/service -H "Content-Type: application/json" -d '{"statement":"CREATE INDEX D_ID_W_ID_O_ID ON default.tpcc.NEW_ORDER(NO_D_ID, NO_W_ID, NO_O_ID) WITH {"num_replica":0}"}'
-     curl -u Administrator:password http://localhost:8093/query/service -H "Content-Type: application/json" -d '{"statement":"CREATE INDEX OR_DID_WID_ID_CID ON default.tpcc.ORDERS(O_D_ID, O_W_ID, O_ID, O_C_ID) WITH {"num_replica":0}"}'
-     curl -u Administrator:password http://localhost:8093/query/service -H "Content-Type: application/json" -d '{"statement":"CREATE INDEX OR_CID_DID_WID_ID_CAID_EID ON default.tpcc.ORDERS(O_C_ID, O_D_ID, O_W_ID, O_ID DESC, O_CARRIER_ID, O_ENTRY_D) WITH {"num_replica":0}"}'
-     curl -u Administrator:password http://localhost:8093/query/service -H "Content-Type: application/json" -d '{"statement":"CREATE INDEX OL_O_ID_D_ID_W_ID ON default.tpcc.ORDER_LINE(OL_O_ID, OL_D_ID, OL_W_ID) WITH {"num_replica":0}"}'
-     curl -u Administrator:password http://localhost:8093/query/service -H "Content-Type: application/json" -d '{"statement":"CREATE INDEX WH_ID ON default.tpcc.WAREHOUSE(W_ID) WITH {"num_replica":0}"}'
+     curl -u Administrator:password http://localhost:8093/query/service -H "Content-Type: application/json" -d '{"statement":"CREATE INDEX CU_W_ID_D_ID_LAST ON default.tpcc.CUSTOMER(C_W_ID, C_D_ID, C_LAST) WITH {\"num_replica\":0}"}'
+     curl -u Administrator:password http://localhost:8093/query/service -H "Content-Type: application/json" -d '{"statement":"CREATE INDEX DI_ID_W_ID ON default.tpcc.DISTRICT(D_ID, D_W_ID) WITH {\"num_replica\":0}"}'
+     curl -u Administrator:password http://localhost:8093/query/service -H "Content-Type: application/json" -d '{"statement":"CREATE INDEX D_ID_W_ID_O_ID ON default.tpcc.NEW_ORDER(NO_D_ID, NO_W_ID, NO_O_ID) WITH {\"num_replica\":0}"}'
+     curl -u Administrator:password http://localhost:8093/query/service -H "Content-Type: application/json" -d '{"statement":"CREATE INDEX OR_DID_WID_ID_CID ON default.tpcc.ORDERS(O_D_ID, O_W_ID, O_ID, O_C_ID) WITH {\"num_replica\":0}"}'
+     curl -u Administrator:password http://localhost:8093/query/service -H "Content-Type: application/json" -d '{"statement":"CREATE INDEX OR_CID_DID_WID_ID_CAID_EID ON default.tpcc.ORDERS(O_C_ID, O_D_ID, O_W_ID, O_ID DESC, O_CARRIER_ID, O_ENTRY_D) WITH {\"num_replica\":0}"}'
+     curl -u Administrator:password http://localhost:8093/query/service -H "Content-Type: application/json" -d '{"statement":"CREATE INDEX OL_O_ID_D_ID_W_ID ON default.tpcc.ORDER_LINE(OL_O_ID, OL_D_ID, OL_W_ID) WITH {\"num_replica\":0}"}'
+     curl -u Administrator:password http://localhost:8093/query/service -H "Content-Type: application/json" -d '{"statement":"CREATE INDEX WH_ID ON default.tpcc.WAREHOUSE(W_ID) WITH {\"num_replica\":0}"}'
 
 
 Generate config file
@@ -41,9 +41,9 @@ Run with single client machine
 -----------------------------
        ./tpcc.py --warehouses 100 --config tpcc.config --duration 600 --clients 40 couchbase
        Change clients based on number of query nodes and machine resources (number of query nodes * 40)
-       Other use full options --no-load, --no-execute, --debug
+       Other usefull options --no-load, --no-execute, --debug
 
 Run with multi client machine
 -----------------------------
-      At present it remote execution returns OSError: cannot send to <Channel id=3 closed> . Not able to setup.
+      At present remote execution returning OSError: cannot send to <Channel id=3 closed> . Not able to setup.
 

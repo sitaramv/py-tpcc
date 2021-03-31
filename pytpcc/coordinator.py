@@ -188,7 +188,7 @@ if __name__ == '__main__':
         cmd = 'ssh='+ node
         cmd += r"//chdir="
         cmd += config['path']
-        print (cmd)
+        #print (cmd)
         for i in range(args['clientprocs']):
             gw=execnet.makegateway(cmd)
             ch=gw.remote_exec(worker)
